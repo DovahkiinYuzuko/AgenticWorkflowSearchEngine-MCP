@@ -4,12 +4,34 @@ const cliLogger = require('./cli-logger');
 let wss = null;
 
 /**
+ * 全接続クライアントにデータを送信
+ * @param {any} data 送信するデータ（文字列またはJSONオブジェクト）
+ */
+const broadcast = (data) => {
+  if (!wss) return;
+  
+  const message = typeof data === 'string' ? data : JSON.stringify(data);
+  
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+};
+
+/**
  * ストリーミング・リレー・サーバー（WebSocket）を起動
  * ユズコ、これでリアルタイムにトークンを飛ばせるようになるよ！
  * @param {number} port 
  * @returns {object} { wss, broadcast }
  */
 function startRelayServer(port = 9999) {
+  // すでにサーバーが起動している場合は二重起動を防ぐ
+  if (wss) {
+    cliLogger.warn('Streaming relay server is already running.');
+    return { wss, broadcast };
+  }
+
   try {
     wss = new WebSocketServer({ port });
     
@@ -27,25 +49,14 @@ function startRelayServer(port = 9999) {
       });
     });
 
+    // サーバー自体のエラー（EADDRINUSEなど）をハンドリング
     wss.on('error', (err) => {
-      cliLogger.error('WebSocket server error:', err);
+      if (err.code === 'EADDRINUSE') {
+        cliLogger.error(`Port ${port} is already in use. Failed to start streaming server.`);
+      } else {
+        cliLogger.error('WebSocket server error:', err);
+      }
     });
-
-    /**
-     * 全接続クライアントにデータを送信
-     * @param {any} data 送信するデータ（文字列またはJSONオブジェクト）
-     */
-    const broadcast = (data) => {
-      if (!wss) return;
-      
-      const message = typeof data === 'string' ? data : JSON.stringify(data);
-      
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    };
 
     return {
       wss,
@@ -57,6 +68,25 @@ function startRelayServer(port = 9999) {
   }
 }
 
+/**
+ * ストリーミング・リレー・サーバーを安全に停止
+ */
+function stopRelayServer() {
+  if (wss) {
+    cliLogger.info('Stopping streaming relay server...');
+    wss.close((err) => {
+      if (err) {
+        cliLogger.error('Error while stopping streaming server:', err);
+      } else {
+        cliLogger.info('Streaming relay server stopped.');
+      }
+    });
+    wss = null;
+  }
+}
+
 module.exports = {
-  startRelayServer
+  startRelayServer,
+  stopRelayServer,
+  broadcast
 };
