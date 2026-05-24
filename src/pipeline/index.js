@@ -98,6 +98,26 @@ async function preloadOllamaModel(host, model) {
     }
 }
 
+// Ollamaのモデルアンロード（メモリ解放）ヘルパー
+async function unloadOllamaModel(host, model) {
+    try {
+        cliLogger.info(`Unloading local model "${model}" to free memory... / メモリ解放のため、ローカルモデル "${model}" をアンロードしています...`);
+        // 空のプロンプトと keep_alive: 0 を投げて即座にメモリから解放させます
+        await fetch(`${host}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: model,
+                prompt: "",
+                stream: false,
+                keep_alive: 0
+            })
+        });
+    } catch {
+        // 例外を無視
+    }
+}
+
 // パイプラインを統合して一括実行する関数
 async function runPipeline(keywords, intent, limitInput) {
     const limit = limitInput || config.search.defaultLimit;
@@ -235,8 +255,14 @@ async function runPipeline(keywords, intent, limitInput) {
     } finally {
         // 案A: headedBrowserのみクローズ (headlessBrowserは廃止)
         if (headedBrowser) await headedBrowser.close();
+        
         // ストリーミングサーバーの停止
         stopRelayServer();
+
+        // パイプライン終了時にOllamaモデルをアンロードしてメモリを解放します
+        if (ollamaActive) {
+            await unloadOllamaModel(config.ollama.host, config.ollama.model);
+        }
     }
 
     // 7. 親AIに返却する「美しい統合Markdown」を組み立てます

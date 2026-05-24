@@ -75,7 +75,7 @@ ${inputText}`;
                 model: config.ollama.model,
                 prompt: prompt,
                 stream: true, // ストリーミングを有効化します
-                keep_alive: 0 // 推論処理の終了直後に、メモリ（VRAM/RAM）からモデルを完全にアンロード（解放）させます
+                keep_alive: -1 // パイプライン実行中はモデルをメモリ（VRAM/RAM）に保持し続けます（-1: 無期限）
             };
 
             if (config.ollama.system) {
