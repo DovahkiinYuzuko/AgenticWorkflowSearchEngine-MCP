@@ -65,9 +65,12 @@ ${inputText}`;
             const timeoutSec = (config.ollama && config.ollama.timeout) || 300;
             const timeoutMs = timeoutSec * 1000;
 
-            // APIの呼び出しを動的な設定時間でタイムアウトさせます
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error(`Ollama refinement request timed out after ${timeoutSec} seconds.`)), timeoutMs)
+            // AbortController でタイムアウトをストリーミング全体にかけます
+            // (Promise.race と異なり、接続確立後のストリーミング読み取り中も有効です)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(
+                () => controller.abort(new Error(`Ollama refinement request timed out after ${timeoutSec} seconds.`)),
+                timeoutMs
             );
 
             // リクエストボディを組み立て、設定ファイルからsystemプロンプトとoptionsをマージして動的に紐付けます
@@ -86,14 +89,12 @@ ${inputText}`;
                 requestBody.options = { ...config.ollama.options };
             }
 
-            const fetchPromise = fetch(`${config.ollama.host}/api/generate`, {
+            const response = await fetch(`${config.ollama.host}/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
+                signal: controller.signal // AbortController のシグナルを渡してストリーム全体を管理します
             });
-
-            // タイムアウトとfetchのレースを実行します
-            const response = await Promise.race([fetchPromise, timeoutPromise]);
 
             if (response.ok) {
                 const reader = response.body.getReader();
@@ -138,7 +139,10 @@ ${inputText}`;
                         }
                     }
                 }
+                // ストリーミングが正常完了した場合、タイムアウトタイマーをクリアします
+                clearTimeout(timeoutId);
             } else {
+                clearTimeout(timeoutId);
                 console.error(`Ollama API error occurred. Status code: ${response.status} / Ollama API エラーが発生しました。ステータスコード: ${response.status}`);
             }
         } catch (error) {

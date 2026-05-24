@@ -9,17 +9,18 @@ const http = require('http');
  * [ENG] This script connects to the streaming relay server and displays
  * incoming text chunks with real-time statistics. It also monitors
  * the parent process and exits if the parent is no longer running.
- * 
+ *
  * [JPN] このスクリプトはストリーミング・リレー・サーバーに接続し、
  * リアルタイムでテキストを表示します。また、親プロセスを監視し、
  * 親が終了した場合には自身も終了します（幽霊プロセス防止）。
  */
 
-const WS_URL = 'ws://localhost:9999';
+const PORT = process.argv[3] ? parseInt(process.argv[3], 10) : 9999;
+const WS_URL = `ws://localhost:${PORT}`;
 const RECONNECT_DELAY = 2000;
-const MAX_RECONNECT_ATTEMPTS = 5; // 5回失敗したら諦めるよ！
+const MAX_RECONNECT_ATTEMPTS = 5;
 
-// コマンドライン引数から親プロセスのPIDを取得
+// 親プロセスのPIDを取得
 const parentPid = process.argv[2] ? parseInt(process.argv[2], 10) : null;
 
 let reconnectAttempts = 0;
@@ -29,7 +30,7 @@ let isConnected = false;
 let loadedModelInfo = 'Checking...';
 let streamBuffer = '';
 
-// 起動して10秒経っても接続できなかったら強制終了するタイマーをセット
+// 起動後10秒以内に接続できない場合は終了
 const startupTimer = setTimeout(() => {
   if (!isConnected) {
     console.log(chalk.red('\n[!] Failed to connect within 10s. Exiting...'));
@@ -37,14 +38,12 @@ const startupTimer = setTimeout(() => {
   }
 }, 10000);
 
-// 親プロセスの生存を確認するウォッチドッグ（2秒おき）
+// ウォッチドッグ（親プロセスの生存確認）
 if (parentPid) {
     setInterval(() => {
         try {
-            // signal 0 を送ることで、実際に殺さずに生存確認だけできるよ！
             process.kill(parentPid, 0);
         } catch (e) {
-            // 親が見つからなければ終了
             console.log(chalk.gray(`\n\n[Watchdog] Parent process (${parentPid}) is gone. Exiting...`));
             process.exit(0);
         }
@@ -60,12 +59,12 @@ function clearScreen() {
  */
 function renderUI() {
   if (!isConnected) return;
-  
+
   const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
   const tps = elapsed > 0 ? (totalTokens / elapsed).toFixed(1) : '0.0';
-  
+
   const statsLine = `Model: ${chalk.green(loadedModelInfo)} | Tokens: ${chalk.yellow(totalTokens)} | Time: ${chalk.cyan(elapsed.toFixed(1) + 's')} | Speed: ${chalk.magenta(tps + ' t/s')}`;
-  
+
   const headerBox = boxen(statsLine, {
     title: 'Ollama Real-time Insight',
     titleAlignment: 'center',
@@ -74,13 +73,13 @@ function renderUI() {
     borderStyle: 'round',
     borderColor: 'cyan'
   });
-  
+
   clearScreen();
   process.stdout.write(headerBox + '\n');
   process.stdout.write(streamBuffer);
 }
 
-// Fetch loaded model info periodically
+// モデル情報の取得
 function fetchModelInfo() {
   http.get('http://localhost:11434/api/ps', (res) => {
     if (res.statusCode !== 200) {
@@ -114,49 +113,55 @@ fetchModelInfo();
 
 function connect() {
   const statusPrefix = chalk.yellow('[!]');
-  
+
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
     console.log(chalk.red(`\n\n${statusPrefix} Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Exiting...`));
     process.exit(1);
   }
 
   process.stdout.write(`\r${statusPrefix} Connecting to relay server... (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
-  
+
   const ws = new WebSocket(WS_URL);
 
   ws.on('open', () => {
     isConnected = true;
     clearTimeout(startupTimer);
     reconnectAttempts = 0;
-    // startTime はここではセットせず、最初のトークンが来た時にセットします
     startTime = null;
   });
 
   ws.on('message', (data) => {
     const message = data.toString();
     if (message === 'ping') return;
-    
-    totalTokens++;
-    
-    // 最初のトークンを受信した瞬間を「推論開始」として時計を回し始めます
-    if (totalTokens === 1) {
-        startTime = Date.now();
-    }
-    
-    // JSON形式で送られてくる場合はパースして表示、そうでない場合はそのまま表示
+
     try {
         const parsed = JSON.parse(message);
+
+        // 制御メッセージの処理
+        if (parsed.control === 'clear') {
+            // バッファをクリアせず、区切り線を入れて履歴を残す
+            if (streamBuffer.length > 0) {
+                streamBuffer += '\n\n' + chalk.blue('-'.repeat(process.stdout.columns || 40)) + '\n\n';
+            }
+            totalTokens = 0;
+            startTime = null;
+            return;
+        }
+
         const token = parsed.response || message;
+        if (totalTokens === 0 && !startTime) startTime = Date.now();
+        totalTokens++;
         streamBuffer += token;
     } catch (e) {
-        // JSONでなければそのままバッファに追加
+        if (totalTokens === 0 && !startTime) startTime = Date.now();
+        totalTokens++;
         streamBuffer += message;
     }
   });
 
   ws.on('close', () => {
     if (isConnected) {
-      console.log(chalk.gray('\n\nStream closed. Task finished. Closing in 3 seconds...'));
+      console.log(chalk.gray('\n\nStream closed. Task finished. Closing in 3 seconds...'));   
       setTimeout(() => {
         process.exit(0);
       }, 3000);
@@ -167,21 +172,20 @@ function connect() {
   });
 
   ws.on('error', () => {
-    // 接続エラー時は close イベントも飛んでくるので、リトライはそっちに任せるよ
     if (isConnected) {
       process.exit(1);
     }
   });
 }
 
-// Global UI maintenance
+// UIの定期更新
 setInterval(() => {
   if (isConnected) {
     renderUI();
   }
 }, 500);
 
-// Start
+// 開始
 clearScreen();
 console.log(chalk.cyan('Initializing Ollama Viewer...'));
 connect();
