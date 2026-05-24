@@ -1,5 +1,6 @@
 const fs = require('fs');
 const config = require('../config');
+const { broadcast } = require('../utils/streaming-server');
 
 // MarkdownからJSONへの構造化関数（システムロケールに基づく多言語動的要約、およびメモリ自動解放に対応しました）
 // 案A対応: pdfPath引数を削除 (PDFファイルの生成を廃止したため)
@@ -73,7 +74,7 @@ ${inputText}`;
             const requestBody = {
                 model: config.ollama.model,
                 prompt: prompt,
-                stream: false,
+                stream: true, // ストリーミングを有効化します
                 keep_alive: 0 // 推論処理の終了直後に、メモリ（VRAM/RAM）からモデルを完全にアンロード（解放）させます
             };
 
@@ -95,8 +96,32 @@ ${inputText}`;
             const response = await Promise.race([fetchPromise, timeoutPromise]);
 
             if (response.ok) {
-                const data = await response.json();
-                aiSummary = data.response;
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                aiSummary = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const data = JSON.parse(line);
+                            if (data.response) {
+                                aiSummary += data.response;
+                                // 各チャンクの内容をブロードキャストしてリアルタイムにリレーします
+                                broadcast(data.response);
+                            }
+                            if (data.done) break;
+                        } catch (e) {
+                            // 不完全なJSON行の場合はスキップ
+                        }
+                    }
+                }
             } else {
                 console.error(`Ollama API error occurred. Status code: ${response.status} / Ollama API エラーが発生しました。ステータスコード: ${response.status}`);
             }
