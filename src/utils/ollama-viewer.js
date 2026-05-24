@@ -128,7 +128,8 @@ function connect() {
     isConnected = true;
     clearTimeout(startupTimer);
     reconnectAttempts = 0;
-    startTime = Date.now();
+    // startTime はここではセットせず、最初のトークンが来た時にセットします
+    startTime = null;
   });
 
   ws.on('message', (data) => {
@@ -136,6 +137,11 @@ function connect() {
     if (message === 'ping') return;
     
     totalTokens++;
+    
+    // 最初のトークンを受信した瞬間を「推論開始」として時計を回し始めます
+    if (totalTokens === 1) {
+        startTime = Date.now();
+    }
     
     // JSON形式で送られてくる場合はパースして表示、そうでない場合はそのまま表示
     try {
