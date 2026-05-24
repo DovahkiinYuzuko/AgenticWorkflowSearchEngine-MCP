@@ -1,0 +1,13 @@
+node_modules/
+DL_PDF/
+app_specification.md
+page.pdf
+screenshot.png
+.history/
+.qodo/
+*.txt
+
+# [NEW] リファクタリング成果物とユーザー個別設定、個別仕様書の除外
+artifacts/
+models_config.json
+**/specification.md
