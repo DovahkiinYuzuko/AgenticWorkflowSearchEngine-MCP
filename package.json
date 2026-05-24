@@ -1,0 +1,21 @@
+{
+  "name": "agentic-workflow-search-engine-mcp",
+  "version": "1.2.0",
+  "description": "Agentic Workflow Search Engine MCP & CLI",
+  "main": "src/index.js",
+  "bin": {
+    "aw-se": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "cli": "node src/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.60.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "turndown": "^7.2.4"
+  }
+}
