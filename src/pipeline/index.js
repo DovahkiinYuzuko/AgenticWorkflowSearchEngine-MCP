@@ -3,7 +3,7 @@ const stealth = require('puppeteer-extra-plugin-stealth');
 chromium.use(stealth());
 
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const config = require('../config');
 const cliLogger = require('../utils/cli-logger');
@@ -26,25 +26,33 @@ async function launchOllamaViewer() {
     cliLogger.info('Launching Ollama Viewer in a new window... / Ollama Viewerを別ウィンドウで起動しています...');
 
     try {
+        let child;
         if (platform === 'win32') {
             // Windows: cmd /k で新しいウィンドウを開き、プロセスを維持
-            spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+            child = spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+            child.unref();
         } else if (platform === 'darwin') {
             // macOS: Terminal.app で実行
-            spawn('open', ['-a', 'Terminal', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+            child = spawn('open', ['-a', 'Terminal', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+            child.unref();
         } else {
             // Linux: gnome-terminalを優先し、一般的なxtermなどを試行
             const terminals = ['gnome-terminal', 'x-terminal-emulator', 'konsole', 'xterm'];
             let launched = false;
             for (const term of terminals) {
                 try {
-                    if (term === 'gnome-terminal') {
-                        spawn(term, ['--', 'node', viewerPath], { detached: true, stdio: 'ignore' });
-                    } else {
-                        spawn(term, ['-e', `node ${viewerPath}`], { detached: true, stdio: 'ignore' });
+                    // ターミナルの存在を確認（spawnは非同期なのでspawnSyncを使用）
+                    const which = spawnSync('which', [term]);
+                    if (which.status === 0) {
+                        if (term === 'gnome-terminal') {
+                            child = spawn(term, ['--', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+                        } else {
+                            child = spawn(term, ['-e', `node ${viewerPath}`], { detached: true, stdio: 'ignore' });
+                        }
+                        child.unref();
+                        launched = true;
+                        break;
                     }
-                    launched = true;
-                    break;
                 } catch (e) {
                     continue;
                 }
