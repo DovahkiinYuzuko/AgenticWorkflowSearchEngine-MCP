@@ -1,106 +1,117 @@
-let isSilent = false;
-let spinnerInterval = null;
-let spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-let spinnerIndex = 0;
-let currentSpinnerText = "";
+const chalk = require('chalk');
+const boxen = require('boxen');
+const cliProgress = require('cli-progress');
 
-const colors = {
-    cyan: (text) => `\x1b[36m${text}\x1b[0m`,
-    green: (text) => `\x1b[32m${text}\x1b[0m`,
-    red: (text) => `\x1b[31m${text}\x1b[0m`,
-    yellow: (text) => `\x1b[33m${text}\x1b[0m`,
-    gray: (text) => `\x1b[90m${text}\x1b[0m`,
-    bold: (text) => `\x1b[1m${text}\x1b[22m`
+let isSilent = false;
+let currentSpinnerText = "";
+let progressBarInstance = null;
+
+const icons = {
+    info: chalk.blue('[i]'),
+    success: chalk.green('[✔]'),
+    plus: chalk.green('[+]'),
+    warn: chalk.yellow('[!]'),
+    error: chalk.red('[x]')
 };
 
+/**
+ * ギャルでも納得！プロ仕様のCLIロガー
+ */
 const cliLogger = {
-    // 起動時の初期化（MCPモードかCLIモードかで出力を切り替えます）
+    /**
+     * 初期化
+     * @param {boolean} isMcp MCPモード（サイレント）かどうか
+     */
     init(isMcp) {
-        isSilent = isMcp;
+        isSilent = !!isMcp;
     },
-    
+
     info(text) {
         if (isSilent) return;
-        console.error(colors.cyan(`ℹ [INFO] ${text}`));
+        console.error(`${icons.info} ${chalk.cyan(text)}`);
     },
-    
+
     success(text) {
         if (isSilent) return;
-        console.error(colors.green(`✔ [SUCCESS] ${text}`));
+        console.error(`${icons.success} ${chalk.green(text)}`);
     },
-    
+
     warn(text) {
         if (isSilent) return;
-        console.error(colors.yellow(`⚠ [WARNING] ${text}`));
+        console.error(`${icons.warn} ${chalk.yellow(text)}`);
     },
-    
+
     error(text, err) {
         if (isSilent) return;
-        console.error(colors.red(`✖ [ERROR] ${text}`));
-        if (err) console.error(colors.gray(err.stack || err.message || err));
+        console.error(`${icons.error} ${chalk.red(text)}`);
+        if (err) {
+            const errorMsg = err.stack || err.message || err;
+            console.error(chalk.gray(errorMsg));
+        }
     },
-    
-    // スピナーアニメーションを開始します
+
+    /**
+     * スピナー（というかヘッダー）を表示開始
+     */
     startSpinner(text) {
         if (isSilent) return;
-        if (spinnerInterval) clearInterval(spinnerInterval);
-        
         currentSpinnerText = text;
-        spinnerIndex = 0;
-        
-        // 最初のフレームを出力
-        process.stderr.write(`\r${colors.cyan(spinnerFrames[0])} ${text}`);
-        
-        spinnerInterval = setInterval(() => {
-            spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
-            process.stderr.write(`\r${colors.cyan(spinnerFrames[spinnerIndex])} ${currentSpinnerText}`);
-        }, 80);
+
+        const header = boxen(chalk.bold.cyan(text), {
+            padding: 0,
+            margin: { top: 1, bottom: 0 },
+            borderStyle: 'round',
+            borderColor: 'cyan'
+        });
+
+        console.error(header);
     },
+
     
-    // スピナーの文言を更新します
+    /**
+     * スピナーのテキストを更新
+     */
     updateSpinner(text) {
         if (isSilent) return;
-        currentSpinnerText = text;
+        this.info(text);
     },
     
-    // スピナーを停止し、最終結果を書き出します
+    /**
+     * スピナーを停止し、結果を表示
+     */
     stopSpinner(isSuccess, text = "") {
         if (isSilent) return;
-        if (spinnerInterval) {
-            clearInterval(spinnerInterval);
-            spinnerInterval = null;
-        }
+        const msg = text || currentSpinnerText;
         
-        // 行全体をクリア
-        process.stderr.write('\r\x1b[K');
-        
-        const finalMsg = text || currentSpinnerText;
         if (isSuccess) {
-            console.error(`${colors.green('✔ [SUCCESS]')} ${finalMsg}`);
+            this.success(msg);
         } else {
-            console.error(`${colors.red('✖ [ERROR]')} ${finalMsg}`);
+            this.error(msg);
         }
     },
     
-    // スタイリッシュな進捗バー（プログレスバー）を出力します
+    /**
+     * 本物のプログレスバーを表示
+     */
     progressBar(current, total, label = "") {
         if (isSilent) return;
-        const width = 20;
-        const percent = Math.min(Math.max(current / total, 0), 1);
-        const filledWidth = Math.round(width * percent);
-        const emptyWidth = width - filledWidth;
-        
-        const filledStr = '█'.repeat(filledWidth);
-        const emptyStr = '░'.repeat(emptyWidth);
-        
-        const percentStr = Math.round(percent * 100).toString().padStart(3);
-        
-        const bar = colors.cyan(`[${filledStr}${emptyStr}]`);
-        const stats = colors.gray(`(${current}/${total})`);
-        
-        process.stderr.write(`\r${bar} ${percentStr}% | ${label} ${stats}\x1b[K`);
-        if (current === total) {
-            process.stderr.write('\n'); // 完了時は自動改行
+
+        if (!progressBarInstance) {
+            progressBarInstance = new cliProgress.SingleBar({
+                format: `${chalk.cyan('{bar}')} ${chalk.yellow('{percentage}%')} | {value}/{total} | ${chalk.gray('{label}')}`,
+                barCompleteChar: '=',
+                barIncompleteChar: '-',
+                hideCursor: true
+            });
+            
+            progressBarInstance.start(total, current, { label });
+        } else {
+            progressBarInstance.update(current, { label });
+        }
+
+        if (current >= total) {
+            progressBarInstance.stop();
+            progressBarInstance = null;
         }
     }
 };
