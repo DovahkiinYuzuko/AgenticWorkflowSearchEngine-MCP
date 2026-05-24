@@ -32,8 +32,8 @@ async function launchOllamaViewer(parentPid) {
         const viewerArgs = [viewerPath, parentPid.toString()];
         
         if (platform === 'win32') {
-            // Windows: cmd /k で新しいウィンドウを開き、プロセスを維持
-            child = spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', 'node', ...viewerArgs], { detached: true, stdio: 'ignore' });
+            // Windows: cmd /c で新しいウィンドウを開き、プロセス終了時に閉じる
+            child = spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', 'node', ...viewerArgs], { detached: true, stdio: 'ignore' });
             child.unref();
         } else if (platform === 'darwin') {
             // macOS: Terminal.app で実行
@@ -199,9 +199,9 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                 }
             );
 
-            cliLogger.info("Structuring Markdown to JSON... / MarkdownからJSONへの構造化を開始します...");
-
-            // 5. Extract & 6. Structure
+            // Phase 1: Ingestion & Extraction (HTML/PDF -> Markdown)
+            cliLogger.info("Phase 1: Extraction (HTML/PDF to Markdown)... / フェーズ 1: Markdownへの変換・抽出を開始します...");
+            const phase1Results = [];
             for (let i = 0; i < captureReport.length; i++) {
                 const item = captureReport[i];
                 if (item.error || item.skipped) {
@@ -209,16 +209,36 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                     continue;
                 }
 
-                // PDFとHTMLで処理を分岐可能な抽出処理
                 const extractResult = await extractToMarkdown(item);
+                const typeLabel = item.contentType === 'pdf' ? '[PDF]' : '[HTML]';
+                const displayFilename = extractResult.mdFilename;
+                cliLogger.progressBar(i, captureReport.length, `Extracting ${typeLabel}: ${displayFilename} / 抽出中 ${typeLabel}: ${displayFilename}`);
+
+                phase1Results.push({
+                    item,
+                    extractResult
+                });
+            }
+            cliLogger.progressBar(captureReport.length, captureReport.length, "Phase 1 completed. / フェーズ 1 が完了しました。");
+
+            // Browser Close: Close the browser environment to free up memory before AI inference.
+            if (headedBrowser) {
+                cliLogger.info("Closing browser to free memory for AI inference... / AI推論のリソース確保のため、ブラウザを終了しています...");
+                await headedBrowser.close();
+            }
+
+            // Phase 2: AI Refinement (Markdown -> JSON structure)
+            cliLogger.info("Phase 2: AI Refinement (Structuring Markdown to JSON)... / フェーズ 2: AIによる構造化と要約を開始します...");
+            for (let i = 0; i < phase1Results.length; i++) {
+                const { item, extractResult } = phase1Results[i];
+                
                 const mdContent = extractResult.markdownContent;
                 const mdPath = extractResult.mdPath;
                 const updatedTitle = extractResult.title;
                 const jsonPath = path.join(item.artifactDir, extractResult.mdFilename.replace('.md', '.json'));
 
                 const typeLabel = item.contentType === 'pdf' ? '[PDF]' : '[HTML]';
-                const displayFilename = extractResult.mdFilename;
-                cliLogger.progressBar(i, captureReport.length, `Converting ${typeLabel}: ${displayFilename} / 変換中 ${typeLabel}: ${displayFilename}`);
+                cliLogger.progressBar(i, phase1Results.length, `Refining ${typeLabel}: ${extractResult.mdFilename} / AI分析中 ${typeLabel}: ${extractResult.mdFilename}`);
 
                 // 動的意図を渡してMarkdownからJSONへ構造化（AI要約を含む）
                 const originalOllamaEnabled = config.ollama.enabled;
@@ -250,7 +270,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                 });
             }
 
-            cliLogger.progressBar(captureReport.length, captureReport.length, "All conversion processes completed. / すべての変換・抽出処理が完了しました。");
+            cliLogger.progressBar(phase1Results.length, phase1Results.length, "Phase 2 completed. / フェーズ 2 が完了しました。");
         } else {
             cliLogger.warn("No search results found. Please check for robot verification (CAPTCHA) on screen. / 検索結果が見つかりませんでした。ロボット検証（CAPTCHA）が画面に表示されている場合は解除してください。");
         }
@@ -258,15 +278,16 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
         cliLogger.error("An error occurred during pipeline execution. / パイプラインの実行中にエラーが発生しました:", err);
         throw err;
     } finally {
-        // 案A: headedBrowserのみクローズ (headlessBrowserは廃止)
-        if (headedBrowser) await headedBrowser.close();
+        // 案A: headedBrowserのみクローズ (もし例外で Phase 1 の途中で止まった場合の安全策)
+        if (headedBrowser && headedBrowser.isConnected()) await headedBrowser.close();
     }
 
     // --- Task 2: Final Summarizer Step ---
     let finalAnswer = null;
     if (enableFinalSummary && ollamaActive && results.length > 0) {
         cliLogger.startSpinner("Generating final comprehensive answer... / 最終的な回答を生成しています...");   
-        finalAnswer = await generateFinalSummary(results, intent);        if (finalAnswer) {
+        finalAnswer = await generateFinalSummary(results, intent);
+        if (finalAnswer) {
             cliLogger.stopSpinner(true, "Final comprehensive answer generated successfully. / 最終回答の生成が完了しました。");
         } else {
             cliLogger.stopSpinner(false, "Failed to generate final answer. / 最終回答の生成に失敗しました。");
