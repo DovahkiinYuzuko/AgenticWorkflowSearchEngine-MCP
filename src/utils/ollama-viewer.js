@@ -127,8 +127,21 @@ function connect() {
   ws.on('message', (data) => {
     const message = data.toString();
     if (message === 'ping') return;
+    
     totalTokens++;
-    process.stdout.write(message);
+    
+    // JSON形式で送られてくる場合はパースして表示、そうでない場合はそのまま表示
+    try {
+        const parsed = JSON.parse(message);
+        if (parsed.response) {
+            process.stdout.write(parsed.response);
+        } else {
+            process.stdout.write(message);
+        }
+    } catch (e) {
+        // JSONでなければそのまま書き出す
+        process.stdout.write(message);
+    }
   });
 
   ws.on('close', () => {
