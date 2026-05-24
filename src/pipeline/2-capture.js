@@ -18,7 +18,48 @@ async function processUrl(headedContext, no, url, artifactDir) {
     const headedPage = await headedContext.newPage();
 
     try {
-        await headedPage.goto(url, { timeout: 60000, waitUntil: 'domcontentloaded' });
+        const response = await headedPage.goto(url, { timeout: 60000, waitUntil: 'domcontentloaded' });
+
+        // PDFの判定
+        let contentType = '';
+        try {
+            contentType = response?.headers?.()?.['content-type'] || '';
+        } catch (e) {
+            // response.headers() is not always available in mocks or some scenarios
+        }
+
+        if (contentType && contentType.includes('application/pdf')) {
+            const pdfBuffer = await response.body();
+
+            // PDFのマジックナンバー確認 (%PDF-)
+            const isActuallyPdf = pdfBuffer.length > 4 && 
+                                pdfBuffer[0] === 0x25 && // %
+                                pdfBuffer[1] === 0x50 && // P
+                                pdfBuffer[2] === 0x44 && // D
+                                pdfBuffer[3] === 0x46 && // F
+                                pdfBuffer[4] === 0x2d;   // -
+
+            if (isActuallyPdf) {
+                const filename = `page${no}_download.pdf`;
+                const pdfPath = path.join(artifactDir, filename);
+                
+                fs.writeFileSync(pdfPath, pdfBuffer);
+
+                await headedPage.close();
+                return {
+                    no,
+                    url,
+                    contentType: 'pdf',
+                    content: pdfBuffer,
+                    pdfPath,
+                    artifactDir
+                };
+            } else {
+                // PDFとして宣言されているが中身がPDFでない場合（エラーページなど）
+                // HTMLとして処理を続行するためにフラグを立てるか、そのままHTML取得へ流す
+                console.warn(`[Warning] URL ${no} is declared as PDF but does not have a valid PDF signature. Falling back to HTML parsing.`);
+            }
+        }
 
         const rawTitle = await newPageTitle(headedPage);
         const normalizedTitle = rawTitle.replace(/[\\/:*?"<>|]/g, "");
@@ -43,6 +84,7 @@ async function processUrl(headedContext, no, url, artifactDir) {
             no,
             url,
             title: rawTitle,
+            contentType: 'html',
             htmlContent,
             artifactDir,
             mdFilename: `${baseFilename}.md`,

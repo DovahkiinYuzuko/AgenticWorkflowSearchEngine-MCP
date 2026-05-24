@@ -12,7 +12,7 @@ const { startRelayServer, stopRelayServer } = require('../utils/streaming-server
 
 const webSearch = require('./1-search');
 const captureUrls = require('./2-capture');
-const htmlToMarkdown = require('./3-extract');
+const extractToMarkdown = require('./3-extract');
 const markdownToJson = require('./4-structure');
 const generateFinalSummary = require('./5-finalize');
 
@@ -209,13 +209,16 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                     continue;
                 }
 
-                cliLogger.progressBar(i, captureReport.length, `Converting: ${item.mdFilename} / 変換中: ${item.mdFilename}`);
+                // PDFとHTMLで処理を分岐可能な抽出処理
+                const extractResult = await extractToMarkdown(item);
+                const mdContent = extractResult.markdownContent;
+                const mdPath = extractResult.mdPath;
+                const updatedTitle = extractResult.title;
+                const jsonPath = path.join(item.artifactDir, extractResult.mdFilename.replace('.md', '.json'));
 
-                const mdPath = path.join(item.artifactDir, item.mdFilename);
-                const jsonPath = path.join(item.artifactDir, item.jsonFilename);
-
-                // 案A: HTMLからMarkdownに変換 (PDFを経由しない)
-                const mdContent = await htmlToMarkdown(item.htmlContent, mdPath, item.title);
+                const typeLabel = item.contentType === 'pdf' ? '[PDF]' : '[HTML]';
+                const displayFilename = extractResult.mdFilename;
+                cliLogger.progressBar(i, captureReport.length, `Converting ${typeLabel}: ${displayFilename} / 変換中 ${typeLabel}: ${displayFilename}`);
 
                 // 動的意図を渡してMarkdownからJSONへ構造化（AI要約を含む）
                 const originalOllamaEnabled = config.ollama.enabled;
@@ -225,7 +228,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                     mdContent,
                     mdPath,
                     item.url,
-                    item.title,
+                    updatedTitle,
                     jsonPath,
                     intent
                 );
@@ -239,7 +242,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                 results.push({
                     no: item.no,
                     url: item.url,
-                    title: item.title,
+                    title: updatedTitle,
                     markdownPath: mdPath,
                     jsonPath,
                     aiSummary: jsonData.aiSummary,
