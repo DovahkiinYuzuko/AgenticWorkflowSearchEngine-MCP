@@ -99,13 +99,29 @@ ${inputText}`;
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 aiSummary = '';
+                let buffer = '';
                 
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
+                    if (done) {
+                        if (buffer.trim()) {
+                            try {
+                                const data = JSON.parse(buffer);
+                                if (data.response) {
+                                    aiSummary += data.response;
+                                    broadcast(data.response);
+                                }
+                            } catch (e) {
+                                // 最後の不完全なバッファは無視
+                            }
+                        }
+                        break;
+                    }
                     
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    
+                    buffer = lines.pop(); // 最後の要素（不完全かもしれない行）をバッファに残す
                     
                     for (const line of lines) {
                         if (!line.trim()) continue;
