@@ -3,15 +3,60 @@ const stealth = require('puppeteer-extra-plugin-stealth');
 chromium.use(stealth());
 
 const path = require('path');
+const { spawn } = require('child_process');
 
 const config = require('../config');
 const cliLogger = require('../utils/cli-logger');
 const { checkCache, saveCache } = require('../utils/cache');
+const { startRelayServer, stopRelayServer } = require('../utils/streaming-server');
 
 const webSearch = require('./1-search');
 const captureUrls = require('./2-capture');
 const htmlToMarkdown = require('./3-extract');
 const markdownToJson = require('./4-structure');
+
+/**
+ * Ollama Viewerを別ウィンドウで起動する
+ * 開発中の状況がリアルタイムで見えるようにするよ！
+ */
+async function launchOllamaViewer() {
+    const viewerPath = path.join(__dirname, '../utils/ollama-viewer.js');
+    const platform = process.platform;
+
+    cliLogger.info('Launching Ollama Viewer in a new window... / Ollama Viewerを別ウィンドウで起動しています...');
+
+    try {
+        if (platform === 'win32') {
+            // Windows: cmd /k で新しいウィンドウを開き、プロセスを維持
+            spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+        } else if (platform === 'darwin') {
+            // macOS: Terminal.app で実行
+            spawn('open', ['-a', 'Terminal', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+        } else {
+            // Linux: gnome-terminalを優先し、一般的なxtermなどを試行
+            const terminals = ['gnome-terminal', 'x-terminal-emulator', 'konsole', 'xterm'];
+            let launched = false;
+            for (const term of terminals) {
+                try {
+                    if (term === 'gnome-terminal') {
+                        spawn(term, ['--', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+                    } else {
+                        spawn(term, ['-e', `node ${viewerPath}`], { detached: true, stdio: 'ignore' });
+                    }
+                    launched = true;
+                    break;
+                } catch (e) {
+                    continue;
+                }
+            }
+            if (!launched) {
+                cliLogger.warn('Could not detect a terminal to launch Ollama Viewer. Please run "node src/utils/ollama-viewer.js" manually.');
+            }
+        }
+    } catch (err) {
+        cliLogger.error('Failed to launch Ollama Viewer:', err);
+    }
+}
 
 // Ollamaのモデル存在チェックヘルパー
 async function checkOllamaModel(host, model) {
@@ -62,6 +107,16 @@ async function runPipeline(keywords, intent, limitInput) {
     }
 
     let ollamaActive = config.ollama && config.ollama.enabled;
+
+    // ストリーミングサーバーの起動とビューアーの自動起動
+    if (ollamaActive) {
+        try {
+            startRelayServer(config.ollama.relayPort || 9999);
+            await launchOllamaViewer();
+        } catch (err) {
+            cliLogger.warn('Streaming orchestration failed, but pipeline will continue. / ストリーミングの準備に失敗しましたが、パイプラインは続行します。');
+        }
+    }
 
     // 1. Ollamaモデルのロード確認＆並列プリロード開始
     if (ollamaActive) {
@@ -171,7 +226,9 @@ async function runPipeline(keywords, intent, limitInput) {
         throw err;
     } finally {
         // 案A: headedBrowserのみクローズ (headlessBrowserは廃止)
-        await headedBrowser.close();
+        if (headedBrowser) await headedBrowser.close();
+        // ストリーミングサーバーの停止
+        stopRelayServer();
     }
 
     // 7. 親AIに返却する「美しい統合Markdown」を組み立てます
