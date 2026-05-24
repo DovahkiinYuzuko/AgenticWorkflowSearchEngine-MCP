@@ -14,6 +14,7 @@ const webSearch = require('./1-search');
 const captureUrls = require('./2-capture');
 const htmlToMarkdown = require('./3-extract');
 const markdownToJson = require('./4-structure');
+const generateFinalSummary = require('./5-finalize');
 
 /**
  * Ollama Viewerを別ウィンドウで起動する
@@ -255,20 +256,38 @@ async function runPipeline(keywords, intent, limitInput) {
     } finally {
         // 案A: headedBrowserのみクローズ (headlessBrowserは廃止)
         if (headedBrowser) await headedBrowser.close();
-        
-        // ストリーミングサーバーの停止
-        stopRelayServer();
+    }
 
-        // パイプライン終了時にOllamaモデルをアンロードしてメモリを解放します
-        if (ollamaActive) {
-            await unloadOllamaModel(config.ollama.host, config.ollama.model);
+    // --- Task 2: Final Summarizer Step ---
+    let finalAnswer = null;
+    if (ollamaActive && results.length > 0) {
+        cliLogger.startSpinner("Generating final comprehensive answer... / 最終的な回答を生成しています...");
+        finalAnswer = await generateFinalSummary(results, intent);
+        if (finalAnswer) {
+            cliLogger.stopSpinner(true, "Final comprehensive answer generated successfully. / 最終回答の生成が完了しました。");
+        } else {
+            cliLogger.stopSpinner(false, "Failed to generate final answer. / 最終回答の生成に失敗しました。");
         }
+    }
+
+    // ストリーミングサーバーの停止
+    stopRelayServer();
+
+    // パイプライン終了時にOllamaモデルをアンロードしてメモリを解放します
+    if (ollamaActive) {
+        await unloadOllamaModel(config.ollama.host, config.ollama.model);
     }
 
     // 7. 親AIに返却する「美しい統合Markdown」を組み立てます
     let markdownOutput = `# 🔍 Search Result Summary / 検索結果サマリー\n`;
     markdownOutput += `- **Keywords / 検索ワード**: \`${keywords}\`\n`;
     markdownOutput += `- **Search Intent / 検索意図**: *"${intent}"*\n\n`;
+
+    if (finalAnswer) {
+        markdownOutput += `## 🏆 Final Comprehensive Answer / 最終的な回答\n`;
+        markdownOutput += `${finalAnswer}\n\n`;
+        markdownOutput += `---\n\n`;
+    }
 
     if (hasRefinementError) {
         markdownOutput += `> [!WARNING]\n`;
