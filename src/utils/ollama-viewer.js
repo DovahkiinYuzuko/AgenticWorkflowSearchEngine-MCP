@@ -22,6 +22,12 @@ let loadedModelInfo = 'Checking...';
 // Fetch loaded model info periodically
 function fetchModelInfo() {
   http.get('http://localhost:11434/api/ps', (res) => {
+    if (res.statusCode !== 200) {
+      loadedModelInfo = 'Error';
+      res.resume(); // Consume response data to free up memory
+      return;
+    }
+
     let data = '';
     res.on('data', (chunk) => {
       data += chunk;
@@ -101,7 +107,6 @@ function connect() {
 
     totalTokens++;
     process.stdout.write(message);
-    updateStats();
   });
 
   ws.on('close', () => {
