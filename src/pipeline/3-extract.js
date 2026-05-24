@@ -9,9 +9,18 @@ const turndownService = new TurndownService({
     hr: '---'
 });
 
-// テキストコンテンツを持たない要素を変換対象から除外します
-// ※ nav/footer/header 等のサイト構造要素は除外せず、Ollamaの要約処理に委ねます
-turndownService.remove(['script', 'style', 'noscript', 'iframe', 'svg']);
+// テキストコンテンツを持たない要素、およびどのサイトでも共通して使われるサイト構造部品を除外します
+// ※ header はページのみならず記事タイトルも含む場合があるため、意図的に除外しません
+turndownService.remove([
+    // 非テキスト系 (スクリプト・スタイル・埋め込み)
+    'script', 'style', 'noscript', 'iframe', 'svg',
+    // サイト共通構造部品 (どのサイトでも本文とは無関係)
+    'nav',    // ナビゲーションバー
+    'footer', // フッター (著作権表示・リンク集等)
+    'aside',  // サイドバー
+    'form',   // お問い合わせフォーム・検索ボックス等
+    'button', // UIボタン
+]);
 
 // HTMLからMarkdownへの変換関数 (案A: PDF変換を廃止し、ページのHTMLを直接変換します)
 async function htmlToMarkdown(htmlContent, mdPath, title) {

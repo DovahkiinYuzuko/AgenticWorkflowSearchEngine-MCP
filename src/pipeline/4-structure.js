@@ -40,6 +40,12 @@ async function markdownToJson(mdContent, mdPath, url, title, jsonPath, intent) {
             // プロセスのシステムロケール（"ja-JP", "en-US", "zh-CN"など）を自動検知します
             const locale = Intl.DateTimeFormat().resolvedOptions().locale;
 
+            // maxInputChars が正の値の場合のみ入力テキストを切り詰めます (-1 は無制限)
+            const maxChars = (config.ollama.maxInputChars && config.ollama.maxInputChars > 0)
+                ? config.ollama.maxInputChars
+                : -1;
+            const inputText = maxChars > 0 ? mdContent.slice(0, maxChars) : mdContent;
+
             // ロケール（言語環境）と元URLを渡して、リンク付きのソース引用を強制する英語のプロンプトを構成します
             const prompt = `Based on the specified [Search Intent], please extract only the necessary information from the following text and summarize it concisely in the language corresponding to the system locale "${locale}".
 You MUST output the result ONLY in the language of system locale "${locale}". Do not generate any extra remarks or meta-comments.
@@ -52,7 +58,7 @@ ${intent}
 ${url}
 
 【Text】
-${mdContent}`;
+${inputText}`;
 
             // 設定ファイルからタイムアウト秒数（秒単位）を取得し、ミリ秒に変換して適用します（デフォルト300秒＝5分）
             const timeoutSec = (config.ollama && config.ollama.timeout) || 300;
