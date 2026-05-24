@@ -27,6 +27,7 @@ let totalTokens = 0;
 let startTime = null;
 let isConnected = false;
 let loadedModelInfo = 'Checking...';
+let streamBuffer = '';
 
 // 起動して10秒経っても接続できなかったら強制終了するタイマーをセット
 const startupTimer = setTimeout(() => {
@@ -48,6 +49,35 @@ if (parentPid) {
             process.exit(0);
         }
     }, 2000);
+}
+
+function clearScreen() {
+  process.stdout.write('\x1Bc');
+}
+
+/**
+ * Renders the rich UI with a header and the stream buffer content.
+ */
+function renderUI() {
+  if (!isConnected) return;
+  
+  const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
+  const tps = elapsed > 0 ? (totalTokens / elapsed).toFixed(1) : '0.0';
+  
+  const statsLine = `Model: ${chalk.green(loadedModelInfo)} | Tokens: ${chalk.yellow(totalTokens)} | Time: ${chalk.cyan(elapsed.toFixed(1) + 's')} | Speed: ${chalk.magenta(tps + ' t/s')}`;
+  
+  const headerBox = boxen(statsLine, {
+    title: 'Ollama Real-time Insight',
+    titleAlignment: 'center',
+    padding: 0,
+    margin: { bottom: 1 },
+    borderStyle: 'round',
+    borderColor: 'cyan'
+  });
+  
+  clearScreen();
+  process.stdout.write(headerBox + '\n');
+  process.stdout.write(streamBuffer);
 }
 
 // Fetch loaded model info periodically
@@ -82,26 +112,6 @@ function fetchModelInfo() {
 setInterval(fetchModelInfo, 2000);
 fetchModelInfo();
 
-// UI Configuration
-const header = boxen(chalk.cyan.bold('Ollama Real-time Insight'), {
-  padding: 1,
-  margin: 1,
-  borderStyle: 'double',
-  borderColor: 'cyan'
-});
-
-function clearScreen() {
-  process.stdout.write('\x1Bc');
-}
-
-function updateStats() {
-  if (!startTime || totalTokens === 0) return;
-  const elapsed = (Date.now() - startTime) / 1000;
-  const tps = (totalTokens / elapsed).toFixed(1);
-  const title = `[Loaded: ${loadedModelInfo}] | Tokens: ${totalTokens} | ${elapsed.toFixed(1)}s | ${tps} t/s`;
-  process.stdout.write(`\x1b]0;${title}\x07`);
-}
-
 function connect() {
   const statusPrefix = chalk.yellow('[!]');
   
@@ -118,9 +128,6 @@ function connect() {
     isConnected = true;
     clearTimeout(startupTimer);
     reconnectAttempts = 0;
-    clearScreen();
-    console.log(header);
-    console.log(chalk.green('Connected to stream.\n'));
     startTime = Date.now();
   });
 
@@ -133,21 +140,21 @@ function connect() {
     // JSON形式で送られてくる場合はパースして表示、そうでない場合はそのまま表示
     try {
         const parsed = JSON.parse(message);
-        if (parsed.response) {
-            process.stdout.write(parsed.response);
-        } else {
-            process.stdout.write(message);
-        }
+        const token = parsed.response || message;
+        streamBuffer += token;
     } catch (e) {
-        // JSONでなければそのまま書き出す
-        process.stdout.write(message);
+        // JSONでなければそのままバッファに追加
+        streamBuffer += message;
     }
   });
 
   ws.on('close', () => {
     if (isConnected) {
-      console.log(chalk.gray('\n\nStream closed. Task finished.'));
-      process.exit(0);
+      console.log(chalk.gray('\n\nStream closed. Task finished. Closing in 3 seconds...'));
+      setTimeout(() => {
+        process.exit(0);
+      }, 3000);
+      return;
     }
     reconnectAttempts++;
     setTimeout(connect, RECONNECT_DELAY);
@@ -164,7 +171,7 @@ function connect() {
 // Global UI maintenance
 setInterval(() => {
   if (isConnected) {
-    updateStats();
+    renderUI();
   }
 }, 500);
 
