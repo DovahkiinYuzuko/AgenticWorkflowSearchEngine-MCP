@@ -19,8 +19,9 @@ const generateFinalSummary = require('./5-finalize');
 /**
  * Ollama Viewerを別ウィンドウで起動する
  * 開発中の状況がリアルタイムで見えるようにするよ！
+ * @param {number} parentPid 親プロセスのID（自爆監視用）
  */
-async function launchOllamaViewer() {
+async function launchOllamaViewer(parentPid) {
     const viewerPath = path.join(__dirname, '../utils/ollama-viewer.js');
     const platform = process.platform;
 
@@ -28,13 +29,15 @@ async function launchOllamaViewer() {
 
     try {
         let child;
+        const viewerArgs = [viewerPath, parentPid.toString()];
+        
         if (platform === 'win32') {
             // Windows: cmd /k で新しいウィンドウを開き、プロセスを維持
-            child = spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+            child = spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', 'node', ...viewerArgs], { detached: true, stdio: 'ignore' });
             child.unref();
         } else if (platform === 'darwin') {
             // macOS: Terminal.app で実行
-            child = spawn('open', ['-a', 'Terminal', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+            child = spawn('open', ['-a', 'Terminal', 'node', ...viewerArgs], { detached: true, stdio: 'ignore' });
             child.unref();
         } else {
             // Linux: gnome-terminalを優先し、一般的なxtermなどを試行
@@ -42,13 +45,12 @@ async function launchOllamaViewer() {
             let launched = false;
             for (const term of terminals) {
                 try {
-                    // ターミナルの存在を確認（spawnは非同期なのでspawnSyncを使用）
                     const which = spawnSync('which', [term]);
                     if (which.status === 0) {
                         if (term === 'gnome-terminal') {
-                            child = spawn(term, ['--', 'node', viewerPath], { detached: true, stdio: 'ignore' });
+                            child = spawn(term, ['--', 'node', ...viewerArgs], { detached: true, stdio: 'ignore' });
                         } else {
-                            child = spawn(term, ['-e', `node ${viewerPath}`], { detached: true, stdio: 'ignore' });
+                            child = spawn(term, ['-e', `node ${viewerArgs.join(' ')}`], { detached: true, stdio: 'ignore' });
                         }
                         child.unref();
                         launched = true;
@@ -139,26 +141,25 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
 
     // ストリーミングサーバーの起動とビューアーの自動起動
     if (ollamaActive) {
-        try {
-            startRelayServer(config.ollama.relayPort || 9999);
-            await launchOllamaViewer();
-        } catch (err) {
-            cliLogger.warn('Streaming orchestration failed, but pipeline will continue. / ストリーミングの準備に失敗しましたが、パイプラインは続行します。');
-        }
-    }
-
-    // 1. Ollamaモデルのロード確認＆並列プリロード開始
-    if (ollamaActive) {
+        // 1. Ollamaサーバー自体の生存確認 (APIの疎通が取れるか)
         cliLogger.startSpinner(`Checking local model "${config.ollama.model}" status... / ローカルモデル "${config.ollama.model}" のロード状況を確認しています...`);
         const isModelLoaded = await checkOllamaModel(config.ollama.host, config.ollama.model);
 
         if (isModelLoaded) {
-            cliLogger.stopSpinner(true, `Model "${config.ollama.model}" is ready. Starting parallel preloading... / モデル "${config.ollama.model}" が検出されました。並列プリロードを開始します...`);
-            // awaitせず非同期（バックグラウンド）でプリロードを即座に開始します
-            preloadOllamaModel(config.ollama.host, config.ollama.model);
+            cliLogger.stopSpinner(true, `Model "${config.ollama.model}" is ready. Starting orchestration... / モデル "${config.ollama.model}" が検出されました。準備を開始します...`);
+            
+            try {
+                startRelayServer(config.ollama.relayPort || 9999);
+                // 自分のPIDを渡してビューアーを起動（自爆監視用）
+                await launchOllamaViewer(process.pid);
+                // 並列プリロードを開始します
+                preloadOllamaModel(config.ollama.host, config.ollama.model);
+            } catch (err) {
+                cliLogger.warn('Streaming orchestration failed, but pipeline will continue. / ストリーミングの準備に失敗しましたが、パイプラインは続行します。');
+            }
         } else {
             cliLogger.stopSpinner(false, `Model "${config.ollama.model}" not found or Ollama is offline. Refinement will be skipped. / モデル "${config.ollama.model}" が未検出、またはOllamaがオフラインです。要約はスキップされます。`);
-            ollamaActive = false; // 動的に無効化して要約をスキップします
+            ollamaActive = false; // 動的に無効化
         }
     }
 

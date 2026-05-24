@@ -1,37 +1,66 @@
 const WebSocket = require('ws');
 const chalk = require('chalk');
 const boxen = require('boxen');
-const readline = require('readline');
 const http = require('http');
 
 /**
  * Ollama Real-time Viewer
  * 
- * This script connects to the streaming relay server and displays
- * incoming text chunks with real-time statistics.
+ * [ENG] This script connects to the streaming relay server and displays
+ * incoming text chunks with real-time statistics. It also monitors
+ * the parent process and exits if the parent is no longer running.
+ * 
+ * [JPN] このスクリプトはストリーミング・リレー・サーバーに接続し、
+ * リアルタイムでテキストを表示します。また、親プロセスを監視し、
+ * 親が終了した場合には自身も終了します（幽霊プロセス防止）。
  */
 
 const WS_URL = 'ws://localhost:9999';
 const RECONNECT_DELAY = 2000;
+const MAX_RECONNECT_ATTEMPTS = 5; // 5回失敗したら諦めるよ！
 
+// コマンドライン引数から親プロセスのPIDを取得
+const parentPid = process.argv[2] ? parseInt(process.argv[2], 10) : null;
+
+let reconnectAttempts = 0;
 let totalTokens = 0;
 let startTime = null;
 let isConnected = false;
 let loadedModelInfo = 'Checking...';
+
+// 起動して10秒経っても接続できなかったら強制終了するタイマーをセット
+const startupTimer = setTimeout(() => {
+  if (!isConnected) {
+    console.log(chalk.red('\n[!] Failed to connect within 10s. Exiting...'));
+    process.exit(1);
+  }
+}, 10000);
+
+// 親プロセスの生存を確認するウォッチドッグ（2秒おき）
+if (parentPid) {
+    setInterval(() => {
+        try {
+            // signal 0 を送ることで、実際に殺さずに生存確認だけできるよ！
+            process.kill(parentPid, 0);
+        } catch (e) {
+            // 親が見つからなければ終了
+            console.log(chalk.gray(`\n\n[Watchdog] Parent process (${parentPid}) is gone. Exiting...`));
+            process.exit(0);
+        }
+    }, 2000);
+}
 
 // Fetch loaded model info periodically
 function fetchModelInfo() {
   http.get('http://localhost:11434/api/ps', (res) => {
     if (res.statusCode !== 200) {
       loadedModelInfo = 'Error';
-      res.resume(); // Consume response data to free up memory
+      res.resume();
       return;
     }
 
     let data = '';
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
+    res.on('data', (chunk) => { data += chunk; });
     res.on('end', () => {
       try {
         const parsed = JSON.parse(data);
@@ -43,9 +72,7 @@ function fetchModelInfo() {
         } else {
           loadedModelInfo = 'No model loaded';
         }
-      } catch (e) {
-        // ignore parsing errors
-      }
+      } catch (e) {}
     });
   }).on('error', () => {
     loadedModelInfo = 'Offline';
@@ -69,59 +96,55 @@ function clearScreen() {
 
 function updateStats() {
   if (!startTime || totalTokens === 0) return;
-
   const elapsed = (Date.now() - startTime) / 1000;
   const tps = (totalTokens / elapsed).toFixed(1);
-
-  // ウィンドウのタイトルバーに統計情報を表示 (OS/Terminalによるけどシブい手法)
   const title = `[Loaded: ${loadedModelInfo}] | Tokens: ${totalTokens} | ${elapsed.toFixed(1)}s | ${tps} t/s`;
   process.stdout.write(`\x1b]0;${title}\x07`);
-  
-  // 画面下部に一行だけ表示 (成功すれば上書き、失敗しても邪魔になりにくい)
-  if (process.stdout.isTTY) {
-    process.stdout.write('\u001b[s'); // カーソル位置を保存
-    readline.cursorTo(process.stdout, 0, process.stdout.rows - 1);
-    readline.clearLine(process.stdout, 0); // 行をクリアして綺麗に描画
-    process.stdout.write(chalk.bgCyan.black(` ${title} `));
-    process.stdout.write('\u001b[u'); // カーソル位置を復元
-  }
 }
 
 function connect() {
   const statusPrefix = chalk.yellow('[!]');
-  process.stdout.write(`\r${statusPrefix} Connecting to relay server...`);
+  
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.log(chalk.red(`\n\n${statusPrefix} Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Exiting...`));
+    process.exit(1);
+  }
+
+  process.stdout.write(`\r${statusPrefix} Connecting to relay server... (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
   
   const ws = new WebSocket(WS_URL);
 
   ws.on('open', () => {
     isConnected = true;
+    clearTimeout(startupTimer);
+    reconnectAttempts = 0;
     clearScreen();
     console.log(header);
-    console.log(chalk.green('[✔] Connected to stream.\n'));
+    console.log(chalk.green('Connected to stream.\n'));
     startTime = Date.now();
   });
 
   ws.on('message', (data) => {
     const message = data.toString();
     if (message === 'ping') return;
-
     totalTokens++;
     process.stdout.write(message);
   });
 
   ws.on('close', () => {
     if (isConnected) {
-      console.log(chalk.red('\n[!] Connection lost. Retrying...'));
+      console.log(chalk.gray('\n\nStream closed. Task finished.'));
+      process.exit(0);
     }
-    isConnected = false;
+    reconnectAttempts++;
     setTimeout(connect, RECONNECT_DELAY);
   });
 
   ws.on('error', () => {
-    // 接続エラー時は1行で表示し続ける
-    process.stdout.write(`\r${statusPrefix} Waiting for server at ${WS_URL}...`);
-    isConnected = false;
-    setTimeout(connect, RECONNECT_DELAY);
+    // 接続エラー時は close イベントも飛んでくるので、リトライはそっちに任せるよ
+    if (isConnected) {
+      process.exit(1);
+    }
   });
 }
 

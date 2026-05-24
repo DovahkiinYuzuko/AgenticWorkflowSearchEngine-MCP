@@ -43,7 +43,7 @@ ${validSummaries}
 5. Do not include any introductory phrases like "Here is the summary" or "Based on the provided information". Start directly with the answer.`;
 
         // Ollama Viewerにフェーズの切り替えを通知
-        broadcast(`\n\n--- 🏁 Generating Final Comprehensive Answer / 最終回答を生成中... ---\n\n`);
+        broadcast(`\n\n--- Generating Final Comprehensive Answer / 最終回答を生成中... ---\n\n`);
 
         const requestBody = {
             model: config.ollama.model,
