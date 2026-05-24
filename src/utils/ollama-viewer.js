@@ -35,16 +35,21 @@ function updateStats() {
   const elapsed = (Date.now() - startTime) / 1000;
   const tps = (totalTokens / elapsed).toFixed(1);
 
-  const statsLine = chalk.dim(`[ Tokens: ${totalTokens} | Elapsed: ${elapsed.toFixed(1)}s | Speed: ${tps} t/s ]`);
+  // ウィンドウのタイトルバーに統計情報を表示 (OS/Terminalによるけどシブい手法)
+  const title = `Ollama: ${totalTokens} tokens | ${elapsed.toFixed(1)}s | ${tps} t/s`;
+  process.stdout.write(`\x1b]0;${title}\x07`);
   
-  // Move cursor to bottom, clear line, and print stats
-  readline.cursorTo(process.stdout, 0, process.stdout.rows - 1);
-  readline.clearLine(process.stdout, 0);
-  process.stdout.write(statsLine);
+  // 画面下部に一行だけ表示 (成功すれば上書き、失敗しても邪魔になりにくい)
+  if (process.stdout.isTTY) {
+    readline.cursorTo(process.stdout, 0, process.stdout.rows - 1);
+    process.stdout.write(chalk.bgCyan.black(` ${title} `));
+    readline.cursorTo(process.stdout, 0, 0); // カーソルを戻す (気休め)
+  }
 }
 
 function connect() {
-  console.log(chalk.yellow(`Connecting to ${WS_URL}...`));
+  const statusPrefix = chalk.yellow('[!]');
+  process.stdout.write(`\r${statusPrefix} Connecting to relay server...`);
   
   const ws = new WebSocket(WS_URL);
 
@@ -52,36 +57,32 @@ function connect() {
     isConnected = true;
     clearScreen();
     console.log(header);
-    console.log(chalk.green('Connected to stream.\n'));
+    console.log(chalk.green('[✔] Connected to stream.\n'));
     startTime = Date.now();
   });
 
   ws.on('message', (data) => {
     const message = data.toString();
-    
-    // Check if it's a heartbeat or actual content
     if (message === 'ping') return;
 
     totalTokens++;
     process.stdout.write(message);
-    
-    // Update stats at the bottom
     updateStats();
   });
 
   ws.on('close', () => {
+    if (isConnected) {
+      console.log(chalk.red('\n[!] Connection lost. Retrying...'));
+    }
     isConnected = false;
-    console.log(chalk.red('\nConnection lost. Retrying...'));
     setTimeout(connect, RECONNECT_DELAY);
   });
 
-  ws.on('error', (err) => {
-    if (!isConnected) {
-      // Silently retry if initial connection fails
-      setTimeout(connect, RECONNECT_DELAY);
-    } else {
-      console.error(chalk.red(`\nWebSocket Error: ${err.message}`));
-    }
+  ws.on('error', () => {
+    // 接続エラー時は1行で表示し続ける
+    process.stdout.write(`\r${statusPrefix} Waiting for server at ${WS_URL}...`);
+    isConnected = false;
+    setTimeout(connect, RECONNECT_DELAY);
   });
 }
 
