@@ -92,8 +92,9 @@ async function checkOllamaModel(host, model) {
 // Ollamaのモデルプリロード（ウォームアップ）ヘルパー
 async function preloadOllamaModel(host, model) {
     try {
-        // バックグラウンドで空のプロンプトを投げてモデルをVRAMにロード（ウォームアップ）させます
-        fetch(`${host}/api/generate`, {
+        // 空のプロンプトを投げてモデルをVRAMにロード（ウォームアップ）させます。
+        // リクエストが正常に送信されるまで待機しますが、生成完了まで待つ必要はありません。
+        const response = await fetch(`${host}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -101,9 +102,13 @@ async function preloadOllamaModel(host, model) {
                 prompt: "",
                 stream: false
             })
-        }).catch(() => {}); // エラーは無視して並列バックグラウンドで処理
-    } catch {
-        // 例外を無視
+        });
+        
+        if (!response.ok) {
+            cliLogger.warn(`Preload request for "${model}" returned status ${response.status}.`);
+        }
+    } catch (err) {
+        cliLogger.warn(`Failed to preload Ollama model "${model}": ${err.message}`);
     }
 }
 
@@ -158,8 +163,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
                 startRelayServer(config.ollama.relayPort || 9999);
                 // 自分のPIDを渡してビューアーを起動（自爆監視用）
                 await launchOllamaViewer(process.pid);
-                // 並列プリロードを開始します
-                preloadOllamaModel(config.ollama.host, config.ollama.model);
+                // NOTE: VRAM競合回避のため、ここではプリロードせず、ブラウザ終了後にロードします。
             } catch (err) {
                 cliLogger.warn('Streaming orchestration failed, but pipeline will continue. / ストリーミングの準備に失敗しましたが、パイプラインは続行します。');
             }
@@ -231,6 +235,15 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
             if (headedBrowser) {
                 cliLogger.info("Closing browser to free memory for AI inference... / AI推論のリソース確保のため、ブラウザを終了しています...");
                 await headedBrowser.close();
+
+                // OSのVRAM解放を待つための1秒のディレイ
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // ブラウザが完全に終了した後にモデルをロードします
+                if (ollamaActive) {
+                    cliLogger.info(`Loading local model "${config.ollama.model}" into VRAM... / ローカルモデル "${config.ollama.model}" をVRAMにロードしています...`);
+                    await preloadOllamaModel(config.ollama.host, config.ollama.model);
+                }
             }
 
             // Phase 2: AI Refinement (Markdown -> JSON structure)
