@@ -1,13 +1,23 @@
-node_modules/
-DL_PDF/
-app_specification.md
-page.pdf
-screenshot.png
-.history/
-.qodo/
-*.txt
+﻿# ホワイトリスト方式: まず全てを無視し、必要なものだけ明示的に許可する
+*
 
-# [NEW] リファクタリング成果物とユーザー個別設定、個別仕様書の除外
-artifacts/
-models_config.json
-**/specification.md
+# ─────────────────────────────
+# 許可リスト (以下のみをGitで追跡する)
+# ─────────────────────────────
+
+# Git管理ファイル自身
+!.gitignore
+
+# npmパッケージ定義 (依存関係の再現に必須)
+!package.json
+!package-lock.json
+
+# README (公開リポジトリのドキュメント)
+!README.md
+
+# ソースコード
+# 注意: gitignoreのホワイトリスト方式では、
+#       親ディレクトリも明示的に除外解除しないとその中身が追跡できない
+!src/
+!src/*/
+!src/**/*.js
