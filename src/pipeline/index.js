@@ -32,8 +32,14 @@ async function launchOllamaViewer(parentPid) {
         const viewerArgs = [viewerPath, parentPid.toString()];
         
         if (platform === 'win32') {
-            // Windows: cmd /c で新しいウィンドウを開き、プロセス終了時に閉じる
-            child = spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', 'node', ...viewerArgs], { detached: true, stdio: 'ignore' });
+            // Windows: 'start' コマンドを使用して新しいウィンドウでプロセスを分離して起動
+            const command = 'start';
+            const args = ['"Ollama Viewer"', 'node', ...viewerArgs];
+            child = spawn('cmd.exe', ['/c', command, ...args], { 
+                detached: true, 
+                stdio: 'ignore',
+                shell: true 
+            });
             child.unref();
         } else if (platform === 'darwin') {
             // macOS: Terminal.app で実行
