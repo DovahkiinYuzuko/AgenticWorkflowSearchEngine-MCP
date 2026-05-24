@@ -25,7 +25,8 @@ let config = {
             temperature: 0.0,
             top_p: 0.9,
             top_k: 40,
-            repeat_penalty: 1.1
+            repeat_penalty: 1.1,
+            num_ctx: 4096
         }
     }
 };
