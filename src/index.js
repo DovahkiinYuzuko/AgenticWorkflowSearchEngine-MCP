@@ -10,7 +10,7 @@ cliLogger.init(true);
 const server = new Server(
     {
         name: "agentic-workflow-search-engine-mcp",
-        version: "1.2.0",
+        version: "1.3.0",
     },
     {
         capabilities: {
@@ -31,7 +31,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     properties: {
                         keywords: {
                             type: "string",
-                            description: "[ENG] Search query keywords. / [JPN] 検索キーワードを入力します。"
+                            description: "[ENG] Search query keywords. / [JPN] 検索キーワードを入力します。"    
                         },
                         intent: {
                             type: "string",
@@ -41,6 +41,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                             type: "number",
                             description: "[ENG] Maximum number of pages to process. (default: 5) / [JPN] 処理する最大件数（デフォルト5件）",
                             default: 5
+                        },
+                        final_summary: {
+                            type: "boolean",
+                            description: "[ENG] Generate a final comprehensive summary after processing all pages. / [JPN] 全ページを処理した後に、最終的な総合要約を生成するかどうか。",
+                            default: false
                         }
                     },
                     required: ["keywords", "intent"]
@@ -53,15 +58,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // ツールの実行ハンドラ
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    
+
     if (name === "search_and_extract") {
         const keywords = args.keywords;
         const intent = args.intent;
         const limit = args.limit || 5;
-        
+        const final_summary = args.final_summary || false;
+
         try {
             // パイプラインを実行し、返ってきた統合Markdownテキストをそのまま親AIに返します
-            const resultMarkdown = await runPipeline(keywords, intent, limit);
+            const resultMarkdown = await runPipeline(keywords, intent, limit, final_summary);
             return {
                 content: [
                     {
@@ -82,7 +88,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             };
         }
     }
-    
+
     throw new Error(`Unknown tool: ${name} / 未知のツールです: ${name}`);
 });
 

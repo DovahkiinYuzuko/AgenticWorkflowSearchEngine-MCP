@@ -120,7 +120,7 @@ async function unloadOllamaModel(host, model) {
 }
 
 // パイプラインを統合して一括実行する関数
-async function runPipeline(keywords, intent, limitInput) {
+async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
     const limit = limitInput || config.search.defaultLimit;
 
     // 案D: キャッシュチェック (有効期限内のキャッシュが存在すればブラウザを起動せずに即座に返します)
@@ -260,10 +260,9 @@ async function runPipeline(keywords, intent, limitInput) {
 
     // --- Task 2: Final Summarizer Step ---
     let finalAnswer = null;
-    if (ollamaActive && results.length > 0) {
-        cliLogger.startSpinner("Generating final comprehensive answer... / 最終的な回答を生成しています...");
-        finalAnswer = await generateFinalSummary(results, intent);
-        if (finalAnswer) {
+    if (enableFinalSummary && ollamaActive && results.length > 0) {
+        cliLogger.startSpinner("Generating final comprehensive answer... / 最終的な回答を生成しています...");   
+        finalAnswer = await generateFinalSummary(results, intent);        if (finalAnswer) {
             cliLogger.stopSpinner(true, "Final comprehensive answer generated successfully. / 最終回答の生成が完了しました。");
         } else {
             cliLogger.stopSpinner(false, "Failed to generate final answer. / 最終回答の生成に失敗しました。");
