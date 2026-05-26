@@ -4,8 +4,8 @@
   "description": "Agentic Workflow Search Engine MCP & CLI",
   "main": "src/index.js",
   "bin": {
-    "aw-se": "./src/cli.js",
-    "aw-se-mcp": "./src/index.js"
+    "aw-se": "src/cli.js",
+    "aw-se-mcp": "src/index.js"
   },
   "files": [
     "src",
