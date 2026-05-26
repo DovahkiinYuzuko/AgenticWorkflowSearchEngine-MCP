@@ -15,6 +15,8 @@
 # README (公開リポジトリのドキュメント)
 !README.md
 !llms.txt
+!LICENSE
+!NOTICE.md
 
 # ソースコード
 # 注意: gitignoreのホワイトリスト方式では、
