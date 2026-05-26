@@ -50,12 +50,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         mode: {
                             type: "string",
                             description: "[ENG] Search mode. 'web' for general web crawling, 'academic' for scrape-free arXiv & PubMed API search. / [JPN] 検索モード。『web』は通常のWeb巡回、『academic』は公式APIを叩く論文検索。",
-                            default: "web"
+                            default: "web",
+                            enum: ["web", "academic"]
                         },
                         deep_dive: {
                             type: "string",
                             description: "[ENG] Recursive deep-dive search behavior. 'auto' (fully autonomous), 'none' (disabled, but recommends keywords). / [JPN] 二段階検索（深掘り）の挙動。『auto』（完全自律）、『none』（無効化。ただし推奨キーワードを表示）",
-                            default: "auto"
+                            default: "auto",
+                            enum: ["auto", "none"]
                         }
                     },
                     required: ["keywords", "intent"]
@@ -70,6 +72,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     if (name === "search_and_extract") {
+        if (!args || !args.keywords || !args.intent) {
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: "text",
+                        text: "Error: Missing required arguments. Both 'keywords' and 'intent' must be provided. / エラー: 必須パラメーターが不足しています。 'keywords' と 'intent' の両方を指定してください。"
+                    }
+                ]
+            };
+        }
+
         const keywords = args.keywords;
         const intent = args.intent;
         const limit = args.limit || 5;

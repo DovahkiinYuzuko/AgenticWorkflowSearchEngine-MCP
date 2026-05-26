@@ -158,22 +158,48 @@ function connect() {
     try {
         const parsed = JSON.parse(message);
 
-        // 制御メッセージの処理
-        if (parsed.control === 'clear') {
-            // バッファをクリアせず、区切り線を入れて履歴を残す
-            if (streamBuffer.length > 0) {
-                streamBuffer += '\n\n' + chalk.blue('-'.repeat(process.stdout.columns || 40)) + '\n\n';
+        if (parsed && typeof parsed === 'object') {
+            // 制御コマンドの処理
+            if (parsed.type === 'control' && parsed.value === 'clear') {
+                if (streamBuffer.length > 0) {
+                    streamBuffer += '\n\n' + chalk.blue('-'.repeat(process.stdout.columns || 40)) + '\n\n';
+                }
+                totalTokens = 0;
+                startTime = null;
+                return;
             }
-            totalTokens = 0;
-            startTime = null;
-            return;
-        }
 
-        const token = parsed.response || message;
-        if (totalTokens === 0 && !startTime) startTime = Date.now();
-        totalTokens++;
-        streamBuffer += token;
+            // 旧形式のクリアコマンドの互換性サポート
+            if (parsed.control === 'clear') {
+                if (streamBuffer.length > 0) {
+                    streamBuffer += '\n\n' + chalk.blue('-'.repeat(process.stdout.columns || 40)) + '\n\n';
+                }
+                totalTokens = 0;
+                startTime = null;
+                return;
+            }
+
+            // トークンまたは情報メッセージの処理
+            if (parsed.type === 'token') {
+                if (totalTokens === 0 && !startTime) startTime = Date.now();
+                totalTokens++;
+                streamBuffer += parsed.value;
+                return;
+            }
+
+            if (parsed.type === 'info') {
+                streamBuffer += parsed.value;
+                return;
+            }
+
+            // その他、想定外のJSONオブジェクト（Ollamaの生レスポンスなどのフォールバック）
+            const token = parsed.response || parsed.value || message;
+            if (totalTokens === 0 && !startTime) startTime = Date.now();
+            totalTokens++;
+            streamBuffer += token;
+        }
     } catch (e) {
+        // 例外発生時は純粋な文字列としてフォールバック処理
         if (totalTokens === 0 && !startTime) startTime = Date.now();
         totalTokens++;
         streamBuffer += message;

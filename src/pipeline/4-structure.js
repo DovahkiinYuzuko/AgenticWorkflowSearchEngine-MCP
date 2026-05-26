@@ -163,7 +163,7 @@ ${url}
 ${chunks[0]}`;
 
                 aiSummary = await callOllamaStreaming(prompt, url, intent, (text) => {
-                    broadcast(text);
+                    broadcast({ type: 'token', value: text });
                 });
             } else if (chunks.length > 1) {
                 // 複数チャンクがある場合は MapReduce 方式で要約
@@ -171,7 +171,7 @@ ${chunks[0]}`;
                 const partialSummaries = [];
 
                 for (let i = 0; i < chunks.length; i++) {
-                    broadcast(`\n\n--- Refining Chunk ${i + 1}/${chunks.length} / 部分要約を生成中 (${i + 1}/${chunks.length}) ---\n\n`);
+                    broadcast({ type: 'info', value: `\n\n--- Refining Chunk ${i + 1}/${chunks.length} / 部分要約を生成中 (${i + 1}/${chunks.length}) ---\n\n` });
                     
                     const mapPrompt = `Based on the specified [Search Intent], please extract only the necessary information from the following portion of the text and summarize it concisely in the language corresponding to the system locale "${locale}".
 You MUST output the result ONLY in the language of system locale "${locale}". Do not generate any extra remarks or meta-comments.
@@ -187,7 +187,7 @@ ${url}
 ${chunks[i]}`;
 
                     const partialSummary = await callOllamaStreaming(mapPrompt, url, intent, (text) => {
-                        broadcast(text);
+                        broadcast({ type: 'token', value: text });
                     });
                     
                     if (partialSummary.trim()) {
@@ -196,7 +196,7 @@ ${chunks[i]}`;
                 }
 
                 // Reduceフェーズ: 部分要約の統合・再要約
-                broadcast(`\n\n--- Synthesizing Chunk Summaries / 部分要約を統合・再要約中... ---\n\n`);
+                broadcast({ type: 'info', value: `\n\n--- Synthesizing Chunk Summaries / 部分要約を統合・再要約中... ---\n\n` });
                 
                 const combinedPartials = partialSummaries.map((ps, idx) => `【Chunk ${idx + 1} Summary】\n${ps}`).join('\n\n');
                 
@@ -214,7 +214,7 @@ ${url}
 ${combinedPartials}`;
 
                 aiSummary = await callOllamaStreaming(reducePrompt, url, intent, (text) => {
-                    broadcast(text);
+                    broadcast({ type: 'token', value: text });
                 });
             }
         } catch (error) {

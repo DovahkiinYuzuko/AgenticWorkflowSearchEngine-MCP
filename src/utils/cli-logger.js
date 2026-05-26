@@ -26,6 +26,10 @@ const cliLogger = {
         isSilent = !!isMcp;
     },
 
+    isMcp() {
+        return isSilent;
+    },
+
     info(text) {
         if (isSilent) return;
         console.error(`${icons.info} ${chalk.cyan(text)}`);

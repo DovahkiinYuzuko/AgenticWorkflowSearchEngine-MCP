@@ -10,7 +10,18 @@ let wss = null;
 const broadcast = (data) => {
   if (!wss) return;
   
-  const message = typeof data === 'string' ? data : JSON.stringify(data);
+  let payload;
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    payload = data;
+  } else {
+    // レガシーなプレーンテキスト呼び出しに対する自動JSON構造化ラッピング
+    payload = {
+      type: 'token',
+      value: String(data)
+    };
+  }
+  
+  const message = JSON.stringify(payload);
   
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {

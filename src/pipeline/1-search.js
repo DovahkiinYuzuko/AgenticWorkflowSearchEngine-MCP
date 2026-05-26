@@ -1,6 +1,7 @@
 const decodeBingUrl = require('../utils/bing-decoder');
 const sleep = require('../utils/sleep');
 const config = require('../config');
+const cliLogger = require('../utils/cli-logger');
 
 // 検索エンジンごとのDOMセレクター＆URL定義マップ（アダプターパターン）
 const ENGINE_CONFIGS = {
@@ -135,6 +136,11 @@ async function webSearch(page, keywords, limit) {
             // 次のページボタンが無い、または非表示なら終了
             break;
         }
+    }
+
+    if (results.length === 0) {
+        cliLogger.warn("No search results found. A robot verification (CAPTCHA) might have occurred, or search selectors may have changed. / 検索結果が0件でした。ロボット検証（CAPTCHA）が発生したか、セレクターが変更された可能性があります。");
+        cliLogger.warn("Tip: Try switching to DuckDuckGo (less CAPTCHA in HTML mode) or Academic mode. / 対処法: DuckDuckGo（HTML版）へ切り替えるか、論文検索（Academic）モードをお試しください。");
     }
 
     return results;

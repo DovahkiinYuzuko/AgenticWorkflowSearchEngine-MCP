@@ -171,6 +171,11 @@ ${finalSummary}
 async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mode = 'web', deepDive = 'interactive') {
     const limit = limitInput || config.search.defaultLimit;
 
+    let resolvedDeepDive = deepDive;
+    if (cliLogger.isMcp() && resolvedDeepDive === 'interactive') {
+        resolvedDeepDive = 'auto'; // MCP接続時はキーボード入力を待てないため、autoへ強制フォールバック
+    }
+
     // キャッシュキーにモードを含めることで、webとacademicのキャッシュ衝突を回避
     const cacheKey = `${mode}:${keywords}`;
 
@@ -283,7 +288,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
             for (let i = 0; i < phase1Results.length; i++) {
                 if (ollamaActive) {
                     const { broadcast } = require('../utils/streaming-server');
-                    broadcast({ control: 'clear' });
+                    broadcast({ type: 'control', value: 'clear' });
                 }
 
                 const { item, extractResult } = phase1Results[i];
@@ -390,7 +395,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
     }
 
     // --- 二段階検索 (Autonomous Deep-Dive) の処理 ---
-    if (finalAnswer && ollamaActive && deepDive !== 'none') {
+    if (finalAnswer && ollamaActive && resolvedDeepDive !== 'none') {
         cliLogger.startSpinner("Checking if deep-dive search is required...");
         const deepDivePlan = await generateDeepDiveQuery(finalAnswer, intent);
         cliLogger.stopSpinner(true, "Deep-dive query check complete.");
@@ -398,7 +403,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
         if (deepDivePlan && deepDivePlan.shouldDeepDive && deepDivePlan.keywords) {
             let executeDeepDive = false;
 
-            if (deepDive === 'interactive') {
+            if (resolvedDeepDive === 'interactive') {
                 cliLogger.info(`\n[Deep-Dive Proposal] AI recommends follow-up search:\n- Keywords: "${deepDivePlan.keywords}"\n- Intent: "${deepDivePlan.intent}"\n`);
                 
                 const readline = require('readline');
@@ -417,7 +422,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
                 if (ans === '' || ans === 'y' || ans === 'yes') {
                     executeDeepDive = true;
                 }
-            } else if (deepDive === 'auto') {
+            } else if (resolvedDeepDive === 'auto') {
                 cliLogger.info(`[Deep-Dive Auto] Executing follow-up search:\n- Keywords: "${deepDivePlan.keywords}"\n- Intent: "${deepDivePlan.intent}"`);
                 executeDeepDive = true;
             }
@@ -444,7 +449,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
         } else {
             cliLogger.info("No further deep-dive research is required. / 追加調査の必要はありません。");
         }
-    } else if (finalAnswer && deepDive === 'none' && !keywords.includes('deep-dive-parent')) {
+    } else if (finalAnswer && resolvedDeepDive === 'none' && !keywords.includes('deep-dive-parent')) {
         // 二次検索を行わない設定（かつ二次検索実行中ではない親）の場合、レポート末尾にキーワード推薦を追加
         cliLogger.startSpinner("Extracting deep-dive recommendation keywords...");
         const deepDivePlan = await generateDeepDiveQuery(finalAnswer, intent);

@@ -97,8 +97,8 @@ ${intent}
 【Summaries from Sources】
 ${validSummaries}`;
 
-    broadcast(`\n\n--- Session 1: Generating Fact-Checking & Contrast Analysis / ファクトチェックを生成中... ---\n\n`);
-    return await callOllamaStreaming(prompt, (text) => broadcast(text));
+    broadcast({ type: 'info', value: `\n\n--- Session 1: Generating Fact-Checking & Contrast Analysis / ファクトチェックを生成中... ---\n\n` });
+    return await callOllamaStreaming(prompt, (text) => broadcast({ type: 'token', value: text }));
 }
 
 /**
@@ -121,8 +121,8 @@ ${intent}
 【Summaries from Sources】
 ${validSummaries}`;
 
-    broadcast(`\n\n--- Session 2: Generating Comprehensive Synthesis / 総合サマリーを生成中... ---\n\n`);
-    return await callOllamaStreaming(prompt, (text) => broadcast(text));
+    broadcast({ type: 'info', value: `\n\n--- Session 2: Generating Comprehensive Synthesis / 総合サマリーを生成中... ---\n\n` });
+    return await callOllamaStreaming(prompt, (text) => broadcast({ type: 'token', value: text }));
 }
 
 /**
