@@ -1,6 +1,7 @@
 # Agentic Workflow Search Engine MCP
 
-OllamaとPlaywrightを活用した、自律的で多段階なWeb・学術論文検索とコンテンツ要約を行うユニバーサルなModel Context Protocol (MCP) サーバーです。
+[JPN] OllamaとPlaywrightを活用した、自律的で多段階なWeb・学術論文検索とコンテンツ要約を行うModel Context Protocol (MCP) サーバーです。  
+[ENG] An autonomous, multi-stage web and academic search engine MCP server utilizing Ollama and Playwright.
 
 [![Node.js](https://img.shields.io/badge/Node.js-v18+-blue.svg)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Model_Context_Protocol-orange.svg)](https://modelcontextprotocol.io)
@@ -16,18 +17,25 @@ OllamaとPlaywrightを活用した、自律的で多段階なWeb・学術論文�
 
 本プロジェクトは、AIエージェント（Claude Desktop、Cursor、Roo Codeなど）が、単なる検索キーワードのクエリを超えて、自律的かつ高度なWeb・学術調査タスクを実行できるように設計されたMCPサーバーです。
 
+### 開発の背景・設計思想 (Motivation & Philosophy)
+
+本ツールは、単なる利便性だけでなく「安全性」と「透明性」を重視して設計されています。
+- **サイト運営者への配慮 (Be gentle to web servers)**: 大量リクエストを送りつけるスクレイピングではなく、あえてPlaywrightによる「ブラウザ経由での通常のアクセス手法」を採用し、サイト運営側のサーバー負荷を最小限に抑えています。
+- **透明性の確保 (Transparency)**: ブラウザをHeadlessモードにせず意図的に可視化し、さらにOllamaの推論過程を別ウィンドウ（Viewer）で表示する仕様にしています。これにより、「AIが今どのページを見て、何を考えているのか」がブラックボックス化せず、ユーザーが常に監視・把握できるようになっています。
+- **コンテキスト汚染の防止 (Preventing Context Pollution)**: ページごとにセッションを完全に区切り、長文は適切に文字数制限でチャンク分割して処理することで、LLMのハルシネーション（情報の混同）やメモリ溢れをシステムレベルで防いでいます。
+
 ### 主な機能
 
-1. **自律的クローリング＆PDF・Markdown変換**:
-   Playwrightで対象のWebページにダイナミックにアクセスし、内容をPDFにレンダリングした上で、ノイズ（ヘッダー、フッター、広告など）を除外したきれいなMarkdownテキストへと自動抽出します。
-2. **ローカルOllamaによる精緻な情報抽出 (Refinement)**:
-   ローカルで動作するOllamaのモデルを用いて、ユーザーの「具体的な検索意図 (intent)」に完璧に合致する情報のみを抽出し、客観的で高精度なJSONデータおよび要約を生成します。
-3. **学術モードへの自動フォールバック (Academic Mode)**:
-   Webクローリング時にCAPTCHA（ロボット検証）などが発生してブロックされた場合、あるいは最初から論文を検索したい場合に、スクレイピング不要の公式API（arXiv & PubMed）へ自動的に切り替えて調査を続行します。
+1. **ブラウザ経由のクローリング＆Markdown/PDF抽出**:
+   Playwrightで対象のWebページにブラウザとしてアクセスし、ヘッダーや広告などを除外したMarkdownテキストへ抽出します。対象URLがPDFファイルの場合はダウンロードしてテキスト解析を行います。
+2. **ローカルOllamaによる情報抽出 (Refinement)**:
+   ローカルで動作するOllamaのモデルを用いて、ユーザーの「検索意図 (intent)」に基づいた情報抽出と要約の生成を行います。
+3. **学術検索モード (Academic Search Mode)**:
+   arXivやPubMedの公式APIを利用して学術論文を直接検索・取得する専用モード（`mode="academic"`）を搭載しています。スクレイピング不要のため安定した論文検索が可能です。
 4. **自律的二段階検索 (Autonomous Deep-Dive)**:
-   一次調査の結果をAI自身が自律的に評価し、未解決の問題やさらに深掘りすべきトピックを見つけ出すと、自ら次の検索キーワードと意図を設計して二次調査（深掘り）を自動実行します。
-5. **逆引き物理インデックスとカスタムリソース機能**:
-   調査結果はすべて `artifacts/` 配下に「検索キーワード」ごとに整理されて保存されます。各調査には `index.csv` という逆引きマップテーブルが自動生成され、MCPのリソース機能 (`mcp://artifacts/{keyword}/index.csv`) 経由でAIがいつでも生データへ物理的にピンポイントアクセスできます。
+   最初の調査結果をAIが評価し、さらに深掘りすべきトピックが見つかった場合、自ら次の検索キーワードを設定して二次調査を実行します。
+5. **逆引き物理インデックス機能**:
+   調査結果はすべて `artifacts/` 配下に「検索キーワード」ごとに整理されて保存されます。各調査には `index.csv` というマップテーブルが自動生成され、MCPのリソース機能 (`mcp://artifacts/{keyword}/index.csv`) 経由でAIがこれらの生データへアクセスできます。
 
 ---
 
@@ -216,18 +224,25 @@ artifacts/
 
 This project is an MCP server designed to enable AI agents (such as Claude Desktop, Cursor, Roo Code, etc.) to perform highly autonomous and advanced web and academic research tasks, going far beyond simple keyword matching.
 
+### Motivation & Philosophy
+
+This tool is designed with a strong emphasis on "Safety" and "Transparency," beyond mere convenience.
+- **Be gentle to web servers**: Instead of aggressive scraping that floods servers with requests, it uses standard browser automation via Playwright to navigate pages, minimizing the load on site operators.
+- **Transparency**: The browser is intentionally kept visible (not headless), and Ollama's reasoning process is displayed in a separate viewer window. This prevents the AI's actions from becoming a black box, allowing users to monitor exactly what the AI is viewing and thinking in real-time.
+- **Preventing Context Pollution**: By completely isolating sessions per page and chunking long texts appropriately, it systematically prevents LLM hallucinations (information mix-ups) and memory overflows.
+
 ### Key Features
 
-1. **Autonomous Crawling & PDF/Markdown Conversion**:
-   Dynamically visits target web pages using Playwright, renders them to PDFs, and automatically converts them into clean, noise-free Markdown text (excluding advertisements, headers, footers, etc.).
+1. **Browser-based Crawling & Markdown/PDF Extraction**:
+   Accesses target web pages via Playwright and extracts content into Markdown, filtering out noise like headers and ads. If the target URL is a PDF, it downloads and parses the text directly.
 2. **Local Ollama-Driven Content Refinement**:
-   Uses a local Ollama model to analyze and extract ONLY the facts that match the user's specific "search intent," outputting highly structured JSON data and precise summaries.
-3. **Automated Academic Fallback**:
-   If Playwright is blocked by CAPTCHAs or web security during crawling, or if academic papers are preferred, the pipeline automatically falls back to clean, scrape-free official APIs (arXiv & PubMed) to ensure uninterrupted research.
+   Uses a local Ollama model to extract information and generate summaries based on the user's specific "search intent."
+3. **Academic Search Mode**:
+   Provides a dedicated mode (`mode="academic"`) to search and retrieve academic papers directly using arXiv and PubMed official APIs, ensuring stable research without scraping.
 4. **Autonomous Secondary Deep-Dive**:
-   The AI autonomously evaluates the primary research findings. If it identifies unresolved questions or critical gaps, it automatically formulates a new search query and intent to execute a secondary, deep-dive search.
-5. **Dynamic Resource Indexing & CSV Mapping**:
-   All outputs are neatly organized under the `artifacts/` folder. Every search creates an `index.csv` mapping table. AI agents can dynamically query this table using the MCP resource URI scheme (`mcp://artifacts/{keyword}/index.csv`) for pin-point access.
+   The AI evaluates the initial research findings and, if it identifies topics requiring further investigation, autonomously formulates the next search queries to execute a secondary deep-dive search.
+5. **Dynamic Resource Indexing**:
+   All research results are organized under the `artifacts/` folder by search keyword, automatically generating an `index.csv` mapping table. AI agents can access these raw data files via the MCP resource URI scheme (`mcp://artifacts/{keyword}/index.csv`).
 
 ---
 
