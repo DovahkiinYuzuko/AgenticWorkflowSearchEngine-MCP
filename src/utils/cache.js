@@ -5,10 +5,19 @@ const sanitizeFolderName = require('./sanitize');
 const ARTIFACTS_DIR = path.resolve(__dirname, '../../artifacts');
 
 // キーワードに対応するキャッシュサマリーファイルのパスを返します
-function getCacheSummaryPath(keywords) {
+function getCacheSummaryPath(cacheKey) {
+    let mode = 'web';
+    let keywords = cacheKey;
+    if (cacheKey.includes(':')) {
+        const parts = cacheKey.split(':');
+        mode = parts[0];
+        keywords = parts.slice(1).join(':');
+    }
     const cacheDir = path.join(ARTIFACTS_DIR, sanitizeFolderName(keywords));
-    return path.join(cacheDir, '_summary.md');
+    const filename = mode === 'web' ? 'summary.md' : `summary_${mode}.md`;
+    return path.join(cacheDir, filename);
 }
+
 
 /**
  * キャッシュの有効性を確認し、有効であればサマリーを返します

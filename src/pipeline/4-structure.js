@@ -2,8 +2,88 @@ const fs = require('fs');
 const config = require('../config');
 const { broadcast } = require('../utils/streaming-server');
 
+/**
+ * Ollama APIを呼び出し、ストリーミングで応答を取得する共通ヘルパー
+ */
+async function callOllamaStreaming(prompt, url, intent, onChunk) {
+    const timeoutSec = (config.ollama && config.ollama.timeout) || 300;
+    const timeoutMs = timeoutSec * 1000;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+        () => controller.abort(new Error(`Ollama request timed out after ${timeoutSec} seconds.`)),
+        timeoutMs
+    );
+
+    const requestBody = {
+        model: config.ollama.model,
+        prompt: prompt,
+        stream: true,
+        keep_alive: -1
+    };
+
+    if (config.ollama.system) {
+        requestBody.system = config.ollama.system;
+    }
+
+    if (config.ollama.options) {
+        requestBody.options = { ...config.ollama.options };
+    }
+
+    let resultText = '';
+    const response = await fetch(`${config.ollama.host}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+    });
+
+    if (!response.ok) {
+        clearTimeout(timeoutId);
+        throw new Error(`Ollama API error: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            if (buffer.trim()) {
+                try {
+                    const data = JSON.parse(buffer);
+                    if (data.response) {
+                        resultText += data.response;
+                        if (onChunk) onChunk(data.response);
+                    }
+                } catch (e) {}
+            }
+            break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+                const data = JSON.parse(line);
+                if (data.response) {
+                    resultText += data.response;
+                    if (onChunk) onChunk(data.response);
+                }
+                if (data.done) break;
+            } catch (e) {}
+        }
+    }
+
+    clearTimeout(timeoutId);
+    return resultText;
+}
+
 // MarkdownからJSONへの構造化関数（システムロケールに基づく多言語動的要約、およびメモリ自動解放に対応しました）
-// 案A対応: pdfPath引数を削除 (PDFファイルの生成を廃止したため)
 async function markdownToJson(mdContent, mdPath, url, title, jsonPath, intent) {
     const lines = mdContent.split('\n');
     const sections = [];
@@ -35,28 +115,42 @@ async function markdownToJson(mdContent, mdPath, url, title, jsonPath, intent) {
     
     let aiSummary = null;
     
-    // Ollamaが有効化されており、かつ検索意図（intent）が指定されている場合、動的に取捨選択抽出を実行します
     if (config.ollama && config.ollama.enabled && intent) {
         try {
-            // プロセスのシステムロケール（"ja-JP", "en-US", "zh-CN"など）を自動検知します
             const locale = Intl.DateTimeFormat().resolvedOptions().locale;
 
-            // maxInputChars が正の値の場合のみ入力テキストを切り詰めます (-1 は無制限)
+            // 1. 動的な見出し境界でのチャンク分割 (Max 8000 characters)
+            const maxChunkSize = 8000;
+            const chunks = [];
+            let currentChunkText = '';
+
+            for (const section of sections) {
+                const sectionText = `\n# ${section.heading}\n${section.content}\n`;
+                if (currentChunkText.length + sectionText.length > maxChunkSize && currentChunkText.length > 0) {
+                    chunks.push(currentChunkText);
+                    currentChunkText = sectionText;
+                } else {
+                    currentChunkText += sectionText;
+                }
+            }
+            if (currentChunkText.length > 0) {
+                chunks.push(currentChunkText);
+            }
+
+            // maxInputChars が正の値の場合のみ入力テキストを切り詰めます（あえて制限する場合のみ）
             const maxChars = (config.ollama.maxInputChars && config.ollama.maxInputChars > 0)
                 ? config.ollama.maxInputChars
                 : -1;
-            const inputText = maxChars > 0 ? mdContent.slice(0, maxChars) : mdContent;
+            
+            if (maxChars > 0) {
+                chunks.length = 0;
+                chunks.push(mdContent.slice(0, maxChars));
+            }
 
-            // ロケール（言語環境）と元URLを渡して、リンク付きのソース引用を強制する英語のプロンプトを構成します
-            const prompt = `Based on the specified [Search Intent], please extract only the necessary information from the following text and summarize it concisely in the language corresponding to the system locale "${locale}".
-You MUST output the result ONLY in the language of system locale "${locale}". Do not include any extra remarks, conversational fillers, or meta-comments.
-
-CRITICAL RULES:
-1. You MUST strictly extract information ONLY from the provided [Text] that is directly relevant to the [Search Intent].
-2. NEVER under any circumstances extrapolate, hypothesize, supplement, or make up facts that are not explicitly written in the [Text].
-3. If the [Text] does not contain enough detailed information or is very short, summarize ONLY what is available. Absolutely DO NOT add any footnotes, excuses, warnings about sparse data, or comments such as "*(注: 情報が少ないため、...)*".
-4. Ensure you do not confuse names (e.g. do not mix up "Antigravity" with similar names like "Anthropic" or "Antropic"). Stick strictly to the exact terminology in the [Text].
-
+            if (chunks.length === 1) {
+                // チャンクが1つの場合は通常どおり実行
+                const prompt = `Based on the specified [Search Intent], please extract only the necessary information from the following text and summarize it concisely in the language corresponding to the system locale "${locale}".
+You MUST output the result ONLY in the language of system locale "${locale}". Do not generate any extra remarks or meta-comments.
 For each extracted fact, claim, or summary point, you MUST explicitly cite the corresponding heading or section from the source text and format it as a clickable Markdown link pointing to the original URL (e.g., "[Source: [Heading Name](${url}#HeadingName)]" or "According to '[Heading Name](${url}#HeadingName)', ...") to verify the source of information.
 
 【Search Intent】
@@ -66,94 +160,65 @@ ${intent}
 ${url}
 
 【Text】
-${inputText}`;
+${chunks[0]}`;
 
-            // 設定ファイルからタイムアウト秒数（秒単位）を取得し、ミリ秒に変換して適用します（デフォルト300秒＝5分）
-            const timeoutSec = (config.ollama && config.ollama.timeout) || 300;
-            const timeoutMs = timeoutSec * 1000;
+                aiSummary = await callOllamaStreaming(prompt, url, intent, (text) => {
+                    broadcast(text);
+                });
+            } else if (chunks.length > 1) {
+                // 複数チャンクがある場合は MapReduce 方式で要約
+                console.log(`\n[MapReduce] Splitting long document into ${chunks.length} chunks...`);
+                const partialSummaries = [];
 
-            // AbortController でタイムアウトをストリーミング全体にかけます
-            // (Promise.race と異なり、接続確立後のストリーミング読み取り中も有効です)
-            const controller = new AbortController();
-            const timeoutId = setTimeout(
-                () => controller.abort(new Error(`Ollama refinement request timed out after ${timeoutSec} seconds.`)),
-                timeoutMs
-            );
-
-            // リクエストボディを組み立て、設定ファイルからsystemプロンプトとoptionsをマージして動的に紐付けます
-            const requestBody = {
-                model: config.ollama.model,
-                prompt: prompt,
-                stream: true, // ストリーミングを有効化します
-                keep_alive: -1 // パイプライン実行中はモデルをメモリ（VRAM/RAM）に保持し続けます（-1: 無期限）
-            };
-
-            if (config.ollama.system) {
-                requestBody.system = config.ollama.system;
-            }
-
-            if (config.ollama.options) {
-                requestBody.options = { ...config.ollama.options };
-            }
-
-            const response = await fetch(`${config.ollama.host}/api/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
-                signal: controller.signal // AbortController のシグナルを渡してストリーム全体を管理します
-            });
-
-            if (response.ok) {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                aiSummary = '';
-                let buffer = '';
-                
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        if (buffer.trim()) {
-                            try {
-                                const data = JSON.parse(buffer);
-                                if (data.response) {
-                                    aiSummary += data.response;
-                                    broadcast(data.response);
-                                }
-                            } catch (e) {
-                                // 最後の不完全なバッファは無視
-                            }
-                        }
-                        break;
-                    }
+                for (let i = 0; i < chunks.length; i++) {
+                    broadcast(`\n\n--- Refining Chunk ${i + 1}/${chunks.length} / 部分要約を生成中 (${i + 1}/${chunks.length}) ---\n\n`);
                     
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
+                    const mapPrompt = `Based on the specified [Search Intent], please extract only the necessary information from the following portion of the text and summarize it concisely in the language corresponding to the system locale "${locale}".
+You MUST output the result ONLY in the language of system locale "${locale}". Do not generate any extra remarks or meta-comments.
+For each extracted fact, claim, or summary point, you MUST explicitly cite the corresponding heading or section from the source text and format it as a clickable Markdown link pointing to the original URL (e.g., "[Source: [Heading Name](${url}#HeadingName)]" or "According to '[Heading Name](${url}#HeadingName)', ...") to verify the source of information.
+
+【Search Intent】
+${intent}
+
+【Original Page URL】
+${url}
+
+【Text Portion】
+${chunks[i]}`;
+
+                    const partialSummary = await callOllamaStreaming(mapPrompt, url, intent, (text) => {
+                        broadcast(text);
+                    });
                     
-                    buffer = lines.pop(); // 最後の要素（不完全かもしれない行）をバッファに残す
-                    
-                    for (const line of lines) {
-                        if (!line.trim()) continue;
-                        try {
-                            const data = JSON.parse(line);
-                            if (data.response) {
-                                aiSummary += data.response;
-                                // 各チャンクの内容をブロードキャストしてリアルタイムにリレーします
-                                broadcast(data.response);
-                            }
-                            if (data.done) break;
-                        } catch (e) {
-                            // 不完全なJSON行の場合はスキップ
-                        }
+                    if (partialSummary.trim()) {
+                        partialSummaries.push(partialSummary);
                     }
                 }
-                // ストリーミングが正常完了した場合、タイムアウトタイマーをクリアします
-                clearTimeout(timeoutId);
-            } else {
-                clearTimeout(timeoutId);
-                console.error(`Ollama API error occurred. Status code: ${response.status} / Ollama API エラーが発生しました。ステータスコード: ${response.status}`);
+
+                // Reduceフェーズ: 部分要約の統合・再要約
+                broadcast(`\n\n--- Synthesizing Chunk Summaries / 部分要約を統合・再要約中... ---\n\n`);
+                
+                const combinedPartials = partialSummaries.map((ps, idx) => `【Chunk ${idx + 1} Summary】\n${ps}`).join('\n\n');
+                
+                const reducePrompt = `You are a professional research assistant. Based on the specified [Search Intent], please synthesize the following partial summaries extracted from different parts of a long document into a single cohesive, structured, and comprehensive final summary.
+You MUST output the result ONLY in the language of system locale "${locale}". Do not generate any extra remarks or meta-comments.
+You MUST preserve all source citations and clickable Markdown links (e.g., [Source: [Heading Name](${url}#HeadingName)]) from the partial summaries. Remove duplicate points and reorganize the structure to be perfectly readable.
+
+【Search Intent】
+${intent}
+
+【Original Page URL】
+${url}
+
+【Partial Summaries】
+${combinedPartials}`;
+
+                aiSummary = await callOllamaStreaming(reducePrompt, url, intent, (text) => {
+                    broadcast(text);
+                });
             }
         } catch (error) {
-            console.error(`[WARNING] Failed to refine content via Ollama: ${error.message} / Ollamaによる情報抽出の実行中にエラーが発生またはタイムアウトしました: ${error.message}`);
+            console.error(`[WARNING] Failed to refine content via Ollama: ${error.message}`);
         }
     }
     

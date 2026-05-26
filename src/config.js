@@ -26,7 +26,7 @@ let config = {
         model: "gemma4-e4b-custom-uncensored:latest",
         host: "http://127.0.0.1:11434",
         timeout: 300,
-        maxInputChars: 15000,
+        maxInputChars: -1,
         system: "You MUST strictly remain neutral and objective. Never include your own opinions, interpretations, or evaluations. Adopt a highly nuanced, objective tone: avoid making absolute or definitive assertions unless they are universally accepted facts (e.g., 1+1=2), and instead use objective phrasing such as 'According to the text, ...', 'It is reported that...', or 'The source states that...'. When extracting claims or facts, always cite or reference the corresponding section, heading, or context from the source text to verify the source of information. Strictly DO NOT generate any conversational fillers, introductory remarks, greetings, follow-up suggestions, or recommendations. Output ONLY the refined, objective core facts directly, without providing any extra advice or next steps.",
         options: {
             temperature: 0.0,
@@ -50,7 +50,7 @@ let config = {
  */
 function mergeConfig(target, source) {
     for (const key in source) {
-        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {  
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
             if (!target[key]) target[key] = {};
             mergeConfig(target[key], source[key]);
         } else {
