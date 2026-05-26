@@ -49,7 +49,14 @@ async function markdownToJson(mdContent, mdPath, url, title, jsonPath, intent) {
 
             // ロケール（言語環境）と元URLを渡して、リンク付きのソース引用を強制する英語のプロンプトを構成します
             const prompt = `Based on the specified [Search Intent], please extract only the necessary information from the following text and summarize it concisely in the language corresponding to the system locale "${locale}".
-You MUST output the result ONLY in the language of system locale "${locale}". Do not generate any extra remarks or meta-comments.
+You MUST output the result ONLY in the language of system locale "${locale}". Do not include any extra remarks, conversational fillers, or meta-comments.
+
+CRITICAL RULES:
+1. You MUST strictly extract information ONLY from the provided [Text] that is directly relevant to the [Search Intent].
+2. NEVER under any circumstances extrapolate, hypothesize, supplement, or make up facts that are not explicitly written in the [Text].
+3. If the [Text] does not contain enough detailed information or is very short, summarize ONLY what is available. Absolutely DO NOT add any footnotes, excuses, warnings about sparse data, or comments such as "*(注: 情報が少ないため、...)*".
+4. Ensure you do not confuse names (e.g. do not mix up "Antigravity" with similar names like "Anthropic" or "Antropic"). Stick strictly to the exact terminology in the [Text].
+
 For each extracted fact, claim, or summary point, you MUST explicitly cite the corresponding heading or section from the source text and format it as a clickable Markdown link pointing to the original URL (e.g., "[Source: [Heading Name](${url}#HeadingName)]" or "According to '[Heading Name](${url}#HeadingName)', ...") to verify the source of information.
 
 【Search Intent】
