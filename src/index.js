@@ -33,15 +33,16 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
                     await scanDir(fullPath);
-                } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.csv'))) {
+                } else if (entry.isFile() && entry.name === 'index.csv') {
                     const relativePath = path.relative(process.cwd(), fullPath);
-                    // file:/// スキームで絶対パスを渡す
-                    const uri = `file:///${fullPath.replace(/\\/g, '/')}`;
+                    const parts = relativePath.split(path.sep);
+                    const keyword = parts[1]; // artifactsの次のディレクトリ名をキーワードとして取得
+                    const uri = `mcp://artifacts/${encodeURIComponent(keyword)}/index.csv`;
                     resources.push({
                         uri,
-                        name: relativePath,
-                        description: `Extracted or indexed file: ${entry.name}`,
-                        mimeType: entry.name.endsWith('.csv') ? 'text/csv' : 'text/markdown'
+                        name: `CSV Index - ${keyword}`,
+                        description: `CSV index table containing mapping and topics for search results of "${keyword}"`,
+                        mimeType: 'text/csv'
                     });
                 }
             }
@@ -57,11 +58,25 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 // リソースの読み込みハンドラ
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const uri = request.params.uri;
-    if (uri.startsWith('file:///')) {
-        let filePath = uri.replace('file:///', '');
-        // Windows環境でのドライブレター開始パスへの配慮
-        if (process.platform === 'win32' && filePath.startsWith('/')) {
-            filePath = filePath.slice(1);
+    
+    if (uri.startsWith('mcp://artifacts/')) {
+        let relativePath = uri.replace('mcp://artifacts/', '');
+        relativePath = decodeURIComponent(relativePath);
+        
+        const artifactsDir = path.join(process.cwd(), 'artifacts');
+        
+        // ディレクトリトラバーサル対策
+        const safeRelativePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\))+/, '');
+        const filePath = path.join(artifactsDir, safeRelativePath);
+        
+        // セキュリティ検証: 絶対に artifactsDir の配下にあること
+        if (!filePath.startsWith(artifactsDir)) {
+            throw new Error(`Unauthorized resource access: ${uri}`);
+        }
+        
+        // 許可する拡張子の制限
+        if (!filePath.endsWith('.md') && !filePath.endsWith('.csv')) {
+            throw new Error(`Unsupported resource type. Only .md and .csv are allowed: ${uri}`);
         }
         
         try {
@@ -79,6 +94,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             throw new Error(`Failed to read resource: ${uri}`);
         }
     }
+    
     throw new Error(`Unknown resource URI: ${uri}`);
 });
 

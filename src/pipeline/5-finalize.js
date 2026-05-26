@@ -106,7 +106,7 @@ ${validSummaries}`;
 /**
  * セッション2: 検索意図に対する包括的な総合要約を生成する
  */
-async function generateComprehensiveSummary(validSummaries, intent, locale, csvIndexContent) {
+async function generateComprehensiveSummary(validSummaries, intent, locale, csvIndexContent, keyword) {
     const prompt = `You are a professional research compiler. Based on the following "Search Intent", the "Summaries" extracted from multiple sources, and the provided "CSV Index", please synthesize a comprehensive, cohesive, and deeply structured objective answer.
 Focus ONLY on answering the Search Intent in a highly logical and clear structure. Remove redundant details.
 
@@ -118,11 +118,11 @@ Use the following exact Markdown structure:
 (Provide a clear, structured, and deep summary that directly addresses the overall Search Intent, integrating facts from the sources with clickable citations)
 
 ## Physical Reference Table (物理ピン打ち逆引き参照テーブル)
-(At the end of your response, strictly based on the provided CSV Index, generate a markdown table mapping the key facts used in your answer to their exact File, Heading, and Line Range. This acts as a highly reliable Fact-Checking index.
+(At the end of your response, strictly based on the provided CSV Index, generate a markdown table mapping the key facts used in your answer to their exact File, Heading, Line Range, and an MCP Resource Link. This acts as a highly reliable Fact-Checking index.
 Format example: 
-| Fact / Topic | File | Heading | Line Range | Source URL |
-|---|---|---|---|---|
-| (Fact description) | pageX_extracted.md | ## (Heading) | (LineRange) | [(URL)] |
+| Fact / Topic | File | Heading | Line Range | Resource Link | Source URL |
+|---|---|---|---|---|---|
+| (Fact description) | pageX_extracted.md | ## (Heading) | (LineRange) | [Read](mcp://artifacts/${encodeURIComponent(keyword)}/pageX_extracted.md) | [(URL)] |
 )
 
 【Search Intent】
@@ -158,10 +158,12 @@ async function generateFinalSummary(results, intent) {
     try {
         const locale = Intl.DateTimeFormat().resolvedOptions().locale;
 
-        // index.csv の読み込み
+        // index.csv の読み込みとキーワードの取得
         let csvIndexContent = '';
+        let keyword = '';
         if (results.length > 0 && results[0].markdownPath) {
             const artifactsDir = path.dirname(results[0].markdownPath);
+            keyword = path.basename(artifactsDir);
             const csvPath = path.join(artifactsDir, 'index.csv');
             if (fs.existsSync(csvPath)) {
                 csvIndexContent = fs.readFileSync(csvPath, 'utf-8');
@@ -170,7 +172,7 @@ async function generateFinalSummary(results, intent) {
 
         // セッション1とセッション2を個別に実行し、シングルタスクで極限の思考精度を出す！
         const factCheckOutput = await generateFactCheck(validSummaries, intent, locale);
-        const synthesisOutput = await generateComprehensiveSummary(validSummaries, intent, locale, csvIndexContent);
+        const synthesisOutput = await generateComprehensiveSummary(validSummaries, intent, locale, csvIndexContent, keyword);
 
         // 最後に単純連結（Join）して1つの完璧なレポートに仕上げる
         const finalReport = `${factCheckOutput}\n\n---\n\n${synthesisOutput}`;
