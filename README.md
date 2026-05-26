@@ -116,14 +116,14 @@ MCPサーバーを登録すると、AIは以下の `search_and_extract` ツー�
 
 ##### パラメータ仕様:
 
-| パラメータ名 | 型 | 必須 | デフォルト値 | 説明 |
-| :--- | :---: | :---: | :---: | :--- |
-| `keywords` | `string` | **Yes** | - | 検索したいキーワードを入力します。（例: `"量子コンピューター 実用化 2026"`） |
-| `intent` | `string` | **Yes** | - | 検索で『どういう情報を取捨選択し、どう整理してほしいか』という具体的な目的を入力します。（例: `"企業別のロードマップと実用化予定時期を抽出"`） |
-| `limit` | `number` | No | `5` | 検索結果から実際に巡回・クローリングする最大ページ数を指定します。 |
-| `final_summary` | `boolean` | No | `false` | 全ページを巡回し個別の抽出が終わった後に、全体の情報を総合した最終まとめレポートを生成するかどうか。 |
-| `mode` | `string` | No | `"web"` | 検索のモード。`"web"` (通常のWebクローリング) または `"academic"` (arXiv & PubMedの公式API経由の論文検索)。 |
-| `deep_dive` | `string` | No | `"auto"` | 自律的な二段階検索の挙動。`"auto"` (一次結果をAIが評価し自動で深掘り検索を実行)、または `"none"` (深掘りを行わず、推奨検索キーワードの提示に留める)。 |
+| パラメータ名    |    型     |  必須   | デフォルト値 | 説明                                                                                                                                                  |
+| :-------------- | :-------: | :-----: | :----------: | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keywords`      | `string`  | **Yes** |      -       | 検索したいキーワードを入力します。（例: `"量子コンピューター 実用化 2026"`）                                                                          |
+| `intent`        | `string`  | **Yes** |      -       | 検索で『どういう情報を取捨選択し、どう整理してほしいか』という具体的な目的を入力します。（例: `"企業別のロードマップと実用化予定時期を抽出"`）        |
+| `limit`         | `number`  |   No    |     `5`      | 検索結果から実際に巡回・クローリングする最大ページ数を指定します。                                                                                    |
+| `final_summary` | `boolean` |   No    |   `false`    | 全ページを巡回し個別の抽出が終わった後に、全体の情報を総合した最終まとめレポートを生成するかどうか。                                                  |
+| `mode`          | `string`  |   No    |   `"web"`    | 検索のモード。`"web"` (通常のWebクローリング) または `"academic"` (arXiv & PubMedの公式API経由の論文検索)。                                           |
+| `deep_dive`     | `string`  |   No    |   `"auto"`   | 自律的な二段階検索の挙動。`"auto"` (一次結果をAIが評価し自動で深掘り検索を実行)、または `"none"` (深掘りを行わず、推奨検索キーワードの提示に留める)。 |
 
 ---
 
@@ -131,18 +131,18 @@ MCPサーバーを登録すると、AIは以下の `search_and_extract` ツー�
 
 本ツールはダウンロード時に同梱されている `config.json` の設定をデフォルト値として動作します。環境に合わせて適宜書き換えて使用してください。設定ファイルが存在しない場合（`npx` での初回起動時など）は、自動的にデフォルト設定ファイルが生成されます。
 
-| カテゴリ | パラメータ名 | デフォルト値 | 役割・作用 |
-| :--- | :--- | :--- | :--- |
-| **search** | `engine` | `"https://www.bing.com"` | 最初に使用する検索エンジンのURL。 |
-| | `defaultLimit` | `5` | デフォルトの巡回ページ数（APIからの指定で上書き可能）。 |
-| | `slowMo` | `500` | （サイト負荷軽減）ブラウザ操作の遅延時間（ミリ秒）。 |
-| | `waitAfterSearch`| `3000` | （サイト負荷軽減）検索結果表示後の待機時間（ミリ秒）。 |
-| | `viewTime` | `4000` | （サイト負荷軽減）各ページアクセス時の待機時間（ミリ秒）。 |
-| | `concurrency` | `2` | 並列で処理する最大タブ数。増やすと速くなりますがメモリを消費します。 |
-| **ollama** | `model` | `"gemma4:e4b-it-q4_K_M"` | 情報抽出に使用するローカルLLMのモデル名。 |
-| | `host` | `"http://127.0.0.1:11434"`| OllamaサーバーのエンドポイントURL。 |
-| | `maxInputChars` | `-1` | LLMに渡すテキストの最大文字数制限。`-1` で無制限。 |
-| | `system` | (長文のため省略) | 事前設定されるシステムプロンプト。客観的な情報抽出を指示しています。 |
+| カテゴリ   | パラメータ名      | デフォルト値               | 役割・作用                                                           |
+| :--------- | :---------------- | :------------------------- | :------------------------------------------------------------------- |
+| **search** | `engine`          | `"https://www.bing.com"`   | 最初に使用する検索エンジンのURL。                                    |
+|            | `defaultLimit`    | `5`                        | デフォルトの巡回ページ数（APIからの指定で上書き可能）。              |
+|            | `slowMo`          | `500`                      | （サイト負荷軽減）ブラウザ操作の遅延時間（ミリ秒）。                 |
+|            | `waitAfterSearch` | `3000`                     | （サイト負荷軽減）検索結果表示後の待機時間（ミリ秒）。               |
+|            | `viewTime`        | `4000`                     | （サイト負荷軽減）各ページアクセス時の待機時間（ミリ秒）。           |
+|            | `concurrency`     | `2`                        | 並列で処理する最大タブ数。増やすと速くなりますがメモリを消費します。 |
+| **ollama** | `model`           | `"gemma4:e4b-it-q4_K_M"`   | 情報抽出に使用するローカルLLMのモデル名。                            |
+|            | `host`            | `"http://127.0.0.1:11434"` | OllamaサーバーのエンドポイントURL。                                  |
+|            | `maxInputChars`   | `-1`                       | LLMに渡すテキストの最大文字数制限。`-1` で無制限。                   |
+|            | `system`          | (長文のため省略)           | 事前設定されるシステムプロンプト。客観的な情報抽出を指示しています。 |
 
 ---
 
@@ -285,14 +285,14 @@ Performs keyword searches, crawls each page using Playwright, sanitizes content 
 
 ##### Parameters:
 
-| Parameter | Type | Required | Default | Description |
-| :--- | :---: | :---: | :---: | :--- |
-| `keywords` | `string` | **Yes** | - | The search terms. (e.g., `"academic hair follicle regeneration gene"`) |
-| `intent` | `string` | **Yes** | - | Precise criteria describing what details to extract and organize. (e.g., `"Extract specific gene names and clinical trial phases"`) |
-| `limit` | `number` | No | `5` | Maximum number of search results to visit. |
-| `final_summary` | `boolean` | No | `false` | Whether to generate a single synthesized final answer crossing all pages. |
-| `mode` | `string` | No | `"web"` | Search mode: `"web"` (dynamic crawl) or `"academic"` (scrape-free API search via arXiv & PubMed). |
-| `deep_dive` | `string` | No | `"auto"` | Multi-phase deep-dive behavior: `"auto"` (AI autonomously plans and executes a secondary search) or `"none"` (AI only recommends terms). |
+| Parameter       |   Type    | Required | Default  | Description                                                                                                                              |
+| :-------------- | :-------: | :------: | :------: | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| `keywords`      | `string`  | **Yes**  |    -     | The search terms. (e.g., `"academic hair follicle regeneration gene"`)                                                                   |
+| `intent`        | `string`  | **Yes**  |    -     | Precise criteria describing what details to extract and organize. (e.g., `"Extract specific gene names and clinical trial phases"`)      |
+| `limit`         | `number`  |    No    |   `5`    | Maximum number of search results to visit.                                                                                               |
+| `final_summary` | `boolean` |    No    | `false`  | Whether to generate a single synthesized final answer crossing all pages.                                                                |
+| `mode`          | `string`  |    No    | `"web"`  | Search mode: `"web"` (dynamic crawl) or `"academic"` (scrape-free API search via arXiv & PubMed).                                        |
+| `deep_dive`     | `string`  |    No    | `"auto"` | Multi-phase deep-dive behavior: `"auto"` (AI autonomously plans and executes a secondary search) or `"none"` (AI only recommends terms). |
 
 ---
 
@@ -300,18 +300,18 @@ Performs keyword searches, crawls each page using Playwright, sanitizes content 
 
 The tool operates using the settings in the included `config.json` as default values. Please modify them according to your environment. If the file is missing (e.g., first run via `npx`), default settings will be generated automatically.
 
-| Category | Parameter | Default Value | Description |
-| :--- | :--- | :--- | :--- |
-| **search** | `engine` | `"https://www.bing.com"` | The default search engine URL. |
-| | `defaultLimit` | `5` | Default number of pages to crawl (can be overridden by API). |
-| | `slowMo` | `500` | (Server load reduction) Delay between browser actions in ms. |
-| | `waitAfterSearch`| `3000` | (Server load reduction) Wait time after loading search results in ms. |
-| | `viewTime` | `4000` | (Server load reduction) Wait time on each visited page in ms. |
-| | `concurrency` | `2` | Maximum number of concurrent browser tabs. |
-| **ollama** | `model` | `"gemma4:e4b-it-q4_K_M"` | The local LLM model name to use for extraction. |
-| | `host` | `"http://127.0.0.1:11434"`| The endpoint URL of your Ollama server. |
-| | `maxInputChars` | `-1` | Maximum characters sent to LLM per chunk. `-1` means unlimited. |
-| | `system` | (Omitted for brevity)| The system prompt instructing the AI to remain objective and factual. |
+| Category   | Parameter         | Default Value              | Description                                                           |
+| :--------- | :---------------- | :------------------------- | :-------------------------------------------------------------------- |
+| **search** | `engine`          | `"https://www.bing.com"`   | The default search engine URL.                                        |
+|            | `defaultLimit`    | `5`                        | Default number of pages to crawl (can be overridden by API).          |
+|            | `slowMo`          | `500`                      | (Server load reduction) Delay between browser actions in ms.          |
+|            | `waitAfterSearch` | `3000`                     | (Server load reduction) Wait time after loading search results in ms. |
+|            | `viewTime`        | `4000`                     | (Server load reduction) Wait time on each visited page in ms.         |
+|            | `concurrency`     | `2`                        | Maximum number of concurrent browser tabs.                            |
+| **ollama** | `model`           | `"gemma4:e4b-it-q4_K_M"`   | The local LLM model name to use for extraction.                       |
+|            | `host`            | `"http://127.0.0.1:11434"` | The endpoint URL of your Ollama server.                               |
+|            | `maxInputChars`   | `-1`                       | Maximum characters sent to LLM per chunk. `-1` means unlimited.       |
+|            | `system`          | (Omitted for brevity)      | The system prompt instructing the AI to remain objective and factual. |
 
 ---
 
