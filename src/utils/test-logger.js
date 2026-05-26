@@ -9,7 +9,7 @@ console.log('--- Testing Professional Logger ---');
 logger.init(false); // サイレントモード無効
 
 logger.info('This is an info message [i]');
-logger.success('Operation completed successfully [✔]');
+logger.success('Operation completed successfully [OK]');
 logger.warn('This is a warning message [!]');
 logger.error('An error occurred [x]', dummyError);
 

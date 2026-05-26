@@ -74,7 +74,7 @@ async function main() {
 
         console.log("\n");
         console.log("================================================================================");        
-        console.log("📊 WORKFLOW RESULT SUMMARY / ワークフロー実行結果サマリー");
+        console.log("WORKFLOW RESULT SUMMARY / ワークフロー実行結果サマリー");
         console.log("================================================================================");        
         console.log(resultMarkdown);
         console.log("================================================================================");        

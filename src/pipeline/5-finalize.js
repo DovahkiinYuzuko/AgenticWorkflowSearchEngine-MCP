@@ -84,13 +84,13 @@ Use the following exact Markdown structure:
 
 ## Fact-Checking & Contrast Analysis (論点対立・合意の分析)
 
-### 🤝 Consensus Points (各ソースで一致している見解)
+### [Consensus] Consensus Points (各ソースで一致している見解)
 (List consensus points with clickable citations pointing to the source URL)
 
-### ⚡ Contradictions & Conflicts (主張が対立している論点)
+### [Conflicts] Contradictions & Conflicts (主張が対立している論点)
 (List contradictions and conflicts between sources, explaining the differences)
 
-### ⚠️ Unverified or Biased Claims (注意すべき主張・広告的な表現)
+### [Unverified] Unverified or Biased Claims (注意すべき主張・広告的な表現)
 (List highly subjective or potentially biased/commercial claims from the text)
 
 【Search Intent】

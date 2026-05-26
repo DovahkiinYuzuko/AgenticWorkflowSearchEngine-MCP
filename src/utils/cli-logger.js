@@ -8,7 +8,7 @@ let progressBarInstance = null;
 
 const icons = {
     info: chalk.blue('[i]'),
-    success: chalk.green('[✔]'),
+    success: chalk.green('[OK]'),
     plus: chalk.green('[+]'),
     warn: chalk.yellow('[!]'),
     error: chalk.red('[x]')

@@ -439,7 +439,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
                     'none'
                 );
 
-                markdownOutput += `\n\n## 🔍 Autonomous Deep-Dive Research\n`;
+                markdownOutput += `\n\n## [Deep-Dive] Autonomous Deep-Dive Research\n`;
                 markdownOutput += `The AI autonomously initiated a secondary deep-dive search to investigate: **"${deepDivePlan.keywords}"**.\n\n`;
                 
                 // 不要なヘッダー部分を除去してマージ
@@ -456,7 +456,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
         cliLogger.stopSpinner(true, "Recommendation complete.");
 
         if (deepDivePlan && deepDivePlan.shouldDeepDive && deepDivePlan.keywords) {
-            markdownOutput += `\n\n## 💡 Next Recommended Research (AI推奨の追加検索テーマ)\n`;
+            markdownOutput += `\n\n## [Recommendations] Next Recommended Research (AI推奨の追加検索テーマ)\n`;
             markdownOutput += `- **Keywords**: \`${deepDivePlan.keywords}\`\n`;
             markdownOutput += `- **Search Intent**: *"${deepDivePlan.intent}"*\n`;
             markdownOutput += `*(You can run this query using \`--keywords "${deepDivePlan.keywords}" --intent "${deepDivePlan.intent}"\` for deeper insights.)*\n`;
