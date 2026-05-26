@@ -89,7 +89,7 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
       "args": [
         "-y",
         "--prefix",
-        "C:/path/to/AgenticWorkflowSearchEngine-MCP",
+        "C:/path/to/mcp-server",
         "node",
         "./src/index.js"
       ]
@@ -107,7 +107,7 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
       "args": [
         "-y",
         "--prefix",
-        "/Users/username/Documents/VSCode/AgenticWorkflowSearchEngine-MCP",
+        "/path/to/mcp-server",
         "node",
         "./src/index.js"
       ]
@@ -126,7 +126,7 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
     "agentic-workflow-search-engine": {
       "command": "node",
       "args": [
-        "C:/path/to/AgenticWorkflowSearchEngine-MCP/src/index.js"
+        "C:/path/to/mcp-server/src/index.js"
       ],
       "env": {
         "NODE_ENV": "production"
@@ -143,7 +143,7 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
     "agentic-workflow-search-engine": {
       "command": "node",
       "args": [
-        "/Users/username/Documents/VSCode/AgenticWorkflowSearchEngine-MCP/src/index.js"
+        "/path/to/mcp-server/src/index.js"
       ],
       "env": {
         "NODE_ENV": "production"
@@ -285,7 +285,7 @@ Requires the absolute path to your cloned repository folder.
       "args": [
         "-y",
         "--prefix",
-        "C:/path/to/AgenticWorkflowSearchEngine-MCP",
+        "C:/path/to/mcp-server",
         "node",
         "./src/index.js"
       ]
@@ -303,7 +303,7 @@ Requires the absolute path to your cloned repository folder.
       "args": [
         "-y",
         "--prefix",
-        "/Users/username/Documents/VSCode/AgenticWorkflowSearchEngine-MCP",
+        "/path/to/mcp-server",
         "node",
         "./src/index.js"
       ]
@@ -322,7 +322,7 @@ Runs the server directly with node (requires `npm install` to have been run insi
     "agentic-workflow-search-engine": {
       "command": "node",
       "args": [
-        "C:/path/to/AgenticWorkflowSearchEngine-MCP/src/index.js"
+        "C:/path/to/mcp-server/src/index.js"
       ],
       "env": {
         "NODE_ENV": "production"
@@ -339,7 +339,7 @@ Runs the server directly with node (requires `npm install` to have been run insi
     "agentic-workflow-search-engine": {
       "command": "node",
       "args": [
-        "/Users/username/Documents/VSCode/AgenticWorkflowSearchEngine-MCP/src/index.js"
+        "/path/to/mcp-server/src/index.js"
       ],
       "env": {
         "NODE_ENV": "production"
