@@ -49,46 +49,31 @@
 
 ---
 
-### インストール方法
+### インストール・実行方法
 
-リポジトリをクローンし、依存パッケージのインストールとブラウザのセットアップを行います。
+本ツールはnpmパッケージとして公開されているため、事前のインストールやGitクローンは不要です。`npx` コマンドで直接実行できます。
 
 ```powershell
-# 1. リポジトリをクローン
-git clone https://github.com/DovahkiinYuzuko/AgenticWorkflowSearchEngine-MCP.git
-cd AgenticWorkflowSearchEngine-MCP
-
-# 2. 依存パッケージのインストール
-npm install
-
-# 3. Playwrightのブラウザをインストール
-npx playwright install chromium
+# 初回実行時にパッケージとPlaywrightブラウザが自動セットアップされます
+npx aw-se --help
 ```
+*(※ソースコードを直接編集したい開発者の場合は、従来通り `git clone` してご利用ください)*
 
 ---
 
-### MCPサーバー設定方法（settings.jsonの書き方）
+### MCPサーバー設定方法（claude_desktop_config.json の書き方）
 
-AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用するための設定ファイルの記述例です。
+AIクライアント（Claude Desktop 等）でこのMCPサーバーを使用するための設定ファイルへの追記例です。
+npmパッケージとして公開されているため、ローカルへのパス指定は不要で、非常にシンプルに設定できます。
 
 #### 1. 設定ファイルの場所
-各OSにおける設定ファイルの配置場所は以下の通りです：
-
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-  - エクスプローラーのアドレスバーに `%APPDATA%\Claude` と入力して移動できます。
 - **macOS / Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 #### 2. 設定JSONの記述例
 
-お使いのOSと起動方法（`npx` での自動ビルド起動、または `node` での直接起動）に合わせて、以下のJSONを参考に `claude_desktop_config.json` に追記してください。
+設定ファイルを開き、`mcpServers` の中に以下の設定を追加してください。
 
-> [!WARNING]
-> Windows環境では、パスのバックスラッシュ（`\`）をJSON内で正しくエスケープするために、必ずダブルスラッシュ（`\\`）またはスラッシュ（`/`）で記述してください。
-
-##### オプションA: `npx` を利用した起動（推奨・ビルド不要で手軽）
-リポジトリをダウンロードした場所の絶対パスを指定します。
-
-**Windows用設定例:**
 ```json
 {
   "mcpServers": {
@@ -96,70 +81,13 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
       "command": "npx",
       "args": [
         "-y",
-        "--prefix",
-        "C:/path/to/mcp-server",
-        "node",
-        "./src/index.js"
+        "agentic-workflow-search-engine-mcp"
       ]
     }
   }
 }
 ```
-
-**macOS / Linux用設定例:**
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "--prefix",
-        "/path/to/mcp-server",
-        "node",
-        "./src/index.js"
-      ]
-    }
-  }
-}
-```
-
-##### オプションB: `node` で直接起動（高速・安定）
-あらかじめリポジトリ内で `npm install` が完了している前提で、`node` コマンドで直接インデックスファイルを起動します。
-
-**Windows用設定例:**
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "node",
-      "args": [
-        "C:/path/to/mcp-server/src/index.js"
-      ],
-      "env": {
-        "NODE_ENV": "production"
-      }
-    }
-  }
-}
-```
-
-**macOS / Linux用設定例:**
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "node",
-      "args": [
-        "/path/to/mcp-server/src/index.js"
-      ],
-      "env": {
-        "NODE_ENV": "production"
-      }
-    }
-  }
-}
-```
+これだけで、次回Claude Desktop起動時に自動で最新版がダウンロードされ、MCPサーバーとして認識されます！
 
 ---
 
@@ -204,15 +132,15 @@ MCPサーバーを登録すると、AIは以下の `search_and_extract` ツー�
 
 ### スタンドアロンCLIでの使い方
 
-MCPサーバーとしてではなく、単体のコマンドラインツール（CLI）として直接実行して、調査レポートを端末に出力させることも可能です。
+MCPサーバーとしてではなく、単体のコマンドラインツール（CLI）としてターミナルから直接実行し、調査レポートを出力させることも可能です。
 
 ```bash
-# フラグによる指定（推奨・多機能）
-node src/cli.js --keywords "AIスマートグラス 最新動向" --intent "各メーカーのスペックと価格情報の抽出" --limit 3 --mode web --deep-dive auto --final-summary
+# npx経由で実行（推奨・多機能）
+npx aw-se --keywords "AIスマートグラス 最新動向" --intent "各メーカーのスペックと価格情報の抽出" --limit 3 --mode web --deep-dive auto --final-summary
 
 # 位置引数による指定（簡易的）
-# node src/cli.js <キーワード> <検索意図> <件数> <最終要約フラグ: true/false>
-node src/cli.js "量子コンピューター 実用化 2026" "ロードマップの抽出" 3 true
+# npx aw-se <キーワード> <検索意図> <件数> <最終要約フラグ: true/false>
+npx aw-se "量子コンピューター 実用化 2026" "ロードマップの抽出" 3 true
 ```
 
 ---
@@ -274,43 +202,30 @@ This tool is designed with a strong emphasis on "Safety" and "Transparency," bey
 
 ---
 
-### Installation
+### Installation & Usage
 
-Clone the repository, install dependencies, and setup the Playwright browsers.
+Because this tool is published as an npm package, you do not need to clone the repository. You can run it instantly using `npx`.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/DovahkiinYuzuko/AgenticWorkflowSearchEngine-MCP.git
-cd AgenticWorkflowSearchEngine-MCP
-
-# 2. Install dependencies
-npm install
-
-# 3. Install Playwright browser engines
-npx playwright install chromium
+# Run directly (Playwright browser will be setup automatically on first run)
+npx aw-se --help
 ```
+*(If you wish to modify the source code, you can still `git clone` the repository as usual.)*
 
 ---
 
-### MCP Configuration (Client settings.json Setup)
+### MCP Configuration (claude_desktop_config.json)
 
-To use this server with an MCP client (such as Claude Desktop), configure your settings file.
+To use this server with an AI client like Claude Desktop, add the following configuration. Since the package is published on npm, you don't need to specify complex local paths!
 
 #### 1. Configuration File Path
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS / Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-#### 2. Configuration JSON Examples
+#### 2. Configuration JSON Example
 
-Choose either Option A (using `npx`) or Option B (using `node` directly) and paste the configuration into your `claude_desktop_config.json`.
+Add the following to your `mcpServers` object:
 
-> [!WARNING]
-> For Windows environments, you MUST escape backslashes in paths using double-backslashes (`\\`) or utilize forward slashes (`/`) to ensure the JSON is valid.
-
-##### Option A: Launch using `npx` (Recommended - Automatic Setup)
-Requires the absolute path to your cloned repository folder.
-
-**For Windows:**
 ```json
 {
   "mcpServers": {
@@ -318,70 +233,13 @@ Requires the absolute path to your cloned repository folder.
       "command": "npx",
       "args": [
         "-y",
-        "--prefix",
-        "C:/path/to/mcp-server",
-        "node",
-        "./src/index.js"
+        "agentic-workflow-search-engine-mcp"
       ]
     }
   }
 }
 ```
-
-**For macOS / Linux:**
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "--prefix",
-        "/path/to/mcp-server",
-        "node",
-        "./src/index.js"
-      ]
-    }
-  }
-}
-```
-
-##### Option B: Direct Launch using `node` (Fast & Stable)
-Runs the server directly with node (requires `npm install` to have been run inside the project root).
-
-**For Windows:**
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "node",
-      "args": [
-        "C:/path/to/mcp-server/src/index.js"
-      ],
-      "env": {
-        "NODE_ENV": "production"
-      }
-    }
-  }
-}
-```
-
-**For macOS / Linux:**
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "node",
-      "args": [
-        "/path/to/mcp-server/src/index.js"
-      ],
-      "env": {
-        "NODE_ENV": "production"
-      }
-    }
-  }
-}
-```
+That's it! The client will automatically download and run the latest version on startup.
 
 ---
 
@@ -429,12 +287,12 @@ The tool operates using the settings in the included `config.json` as default va
 You can also run this program as a standalone command-line interface directly in your terminal.
 
 ```bash
-# Executing with flags (Recommended)
-node src/cli.js --keywords "quantum computing roadmap" --intent "Extract timeline and major players" --limit 3 --mode web --deep-dive auto --final-summary
+# Executing via npx with flags (Recommended)
+npx aw-se --keywords "quantum computing roadmap" --intent "Extract timeline and major players" --limit 3 --mode web --deep-dive auto --final-summary
 
-# Executing with positional arguments (Simplified)
-# node src/cli.js <keywords> [intent] [limit] [final_summary]
-node src/cli.js "quantum computing roadmap" "Extract timeline" 3 true
+# Executing via npx with positional arguments (Simplified)
+# npx aw-se <keywords> [intent] [limit] [final_summary]
+npx aw-se "quantum computing roadmap" "Extract timeline" 3 true
 ```
 
 ---
