@@ -89,7 +89,7 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
       "args": [
         "-y",
         "--prefix",
-        "C:/Users/rikui/Documents/VSCode/AgenticWorkflowSearchEngine-MCP",
+        "C:/path/to/AgenticWorkflowSearchEngine-MCP",
         "node",
         "./src/index.js"
       ]
@@ -126,7 +126,7 @@ AIクライアント（例: Claude Desktop）でこのMCPサーバーを使用�
     "agentic-workflow-search-engine": {
       "command": "node",
       "args": [
-        "C:/Users/rikui/Documents/VSCode/AgenticWorkflowSearchEngine-MCP/src/index.js"
+        "C:/path/to/AgenticWorkflowSearchEngine-MCP/src/index.js"
       ],
       "env": {
         "NODE_ENV": "production"
@@ -285,7 +285,7 @@ Requires the absolute path to your cloned repository folder.
       "args": [
         "-y",
         "--prefix",
-        "C:/Users/rikui/Documents/VSCode/AgenticWorkflowSearchEngine-MCP",
+        "C:/path/to/AgenticWorkflowSearchEngine-MCP",
         "node",
         "./src/index.js"
       ]
@@ -322,7 +322,7 @@ Runs the server directly with node (requires `npm install` to have been run insi
     "agentic-workflow-search-engine": {
       "command": "node",
       "args": [
-        "C:/Users/rikui/Documents/VSCode/AgenticWorkflowSearchEngine-MCP/src/index.js"
+        "C:/path/to/AgenticWorkflowSearchEngine-MCP/src/index.js"
       ],
       "env": {
         "NODE_ENV": "production"
