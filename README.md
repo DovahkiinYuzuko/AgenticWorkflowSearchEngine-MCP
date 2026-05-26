@@ -67,42 +67,30 @@ npmパッケージとして公開されているため、各AIアシスタント
 
 #### 1. CLIから一撃で導入する場合 (推奨)
 
-**Claude Code**:
+**Claude Code / OpenAI Codex**:
+専用のコマンドを使うことで、自動で設定が完了します。
 ```bash
 claude mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
 ```
-
-**Antigravity 2.0**:
 ```bash
-antigravity mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
+codex mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
 ```
 
-**Cursor / Windsurf など**:
+**Cursor / Windsurf / Roo Code など**:
 Universal MCP Installerを使用すると自動で設定ファイルに書き込まれます。
 ```bash
 npx universal-mcp-installer install agentic-workflow-search-engine-mcp
 ```
 
-#### 2. 手動で設定ファイル (claude_desktop_config.json 等) に追記する場合
+#### 2. 手動で設定ファイルに追記する場合 (GUIアプリ等)
 
-Claude Desktopなどの場合は、以下の設定を `mcpServers` に追加してください。
+**Claude Desktop / Antigravity 2.0 など**は、手動で設定ファイルに追記する必要があります。
+本リポジトリに同梱されている `mcp_config_sample.json` の内容をコピーし、各ツールの設定ファイルにある `mcpServers` 内に貼り付けてください。
 
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **macOS / Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Claude Desktop (Mac/Linux)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Antigravity 2.0**: `~/.gemini/config/mcp_config.json`
 
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "agentic-workflow-search-engine-mcp"
-      ]
-    }
-  }
-}
-```
 これだけで、次回起動時に自動で最新版がダウンロードされ、MCPサーバーとして認識されます。
 
 ---
@@ -236,42 +224,30 @@ Since the package is published on npm, you can install it instantly using CLI co
 
 #### 1. Quick Installation via CLI (Recommended)
 
-**Claude Code**:
+**Claude Code / OpenAI Codex**:
+You can use their dedicated commands to automatically configure the server.
 ```bash
 claude mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
 ```
-
-**Antigravity 2.0**:
 ```bash
-antigravity mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
+codex mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
 ```
 
-**Cursor / Windsurf, etc.**:
+**Cursor / Windsurf / Roo Code, etc.**:
 Use the Universal MCP Installer to automatically configure your editor.
 ```bash
 npx universal-mcp-installer install agentic-workflow-search-engine-mcp
 ```
 
-#### 2. Manual Configuration (claude_desktop_config.json, etc.)
+#### 2. Manual Configuration (for GUI Apps)
 
-For Claude Desktop, add the following configuration to your `mcpServers` object.
+For apps like **Claude Desktop** and **Antigravity 2.0**, you need to manually add the server to their configuration files.
+Copy the contents of the included `mcp_config_sample.json` file and paste it into the `mcpServers` object in your tool's config file.
 
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **macOS / Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **Claude Desktop (Mac/Linux)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Antigravity 2.0**: `~/.gemini/config/mcp_config.json`
 
-```json
-{
-  "mcpServers": {
-    "agentic-workflow-search-engine": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "agentic-workflow-search-engine-mcp"
-      ]
-    }
-  }
-}
-```
 That's it! The client will automatically download and run the latest version on startup.
 
 ---
