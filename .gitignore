@@ -8,6 +8,11 @@
 # Git管理ファイル自身
 !.gitignore
 
+# GitHub Action等
+!.github/
+!.github/*/
+!.github/**/*.yml
+
 # npmパッケージ定義 (依存関係の再現に必須)
 !package.json
 !package-lock.json
