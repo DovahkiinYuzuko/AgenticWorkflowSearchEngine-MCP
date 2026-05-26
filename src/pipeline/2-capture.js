@@ -13,7 +13,7 @@ async function newPageTitle(page) {
     }
 }
 
-// 2つのURLが「同一記事の分割ページ」である可能性が高いか判定するヘルパー
+// 2つのURLが「同一記事の分割ページ」である可能性が高いか判定するヘルパー (改修版)
 function isSameArticleUrl(urlA, urlB) {
     try {
         const uA = new URL(urlA);
@@ -52,6 +52,47 @@ function isSameArticleUrl(urlA, urlB) {
             } else {
                 break;
             }
+        }
+
+        // 1. パスの長さが同じで、最後の1つのセグメント（ファイル名やID）だけが異なる場合
+        if (segsA.length === segsB.length && matchCount === segsA.length - 1) {
+            const lastA = segsA[segsA.length - 1];
+            const lastB = segsB[segsB.length - 1];
+
+            // 単にID自体が異なる数値（例: "12345" と "67890"）の場合は、別記事とみなす
+            const isNumericA = /^\d+$/.test(lastA);
+            const isNumericB = /^\d+$/.test(lastB);
+            if (isNumericA && isNumericB) {
+                return lastA === lastB;
+            }
+
+            // 最後のセグメントの違いが「ページ番号の増加・パターン」であるか確認する
+            const pagePattern = /[-_]?(\d+)$/;
+            const matchA = lastA.match(pagePattern);
+            const matchB = lastB.match(pagePattern);
+
+            if (matchA && matchB) {
+                const prefixA = lastA.replace(pagePattern, '');
+                const prefixB = lastB.replace(pagePattern, '');
+                if (prefixA === prefixB && prefixA !== '') {
+                    return true;
+                }
+            } else if (matchB) {
+                // 例: "article" -> "article-2"
+                const prefixB = lastB.replace(pagePattern, '');
+                if (lastA === prefixB && prefixB !== '') {
+                    return true;
+                }
+            }
+
+            // 特殊パターンに当てはまらない単なる別名の場合は、別記事とみなして排除
+            return false;
+        }
+
+        // 2. パスの長さが異なる場合 (例: /news/12345 -> /news/12345/2 や /news/12345/page/2)
+        // 共通部分が、短い方のパス（元のパスである segsA）全体と完全に一致している必要がある
+        if (segsA.length < segsB.length) {
+            return matchCount === segsA.length;
         }
 
         return matchCount > 0 && matchCount >= (minLen - 1);
@@ -178,6 +219,14 @@ async function processUrl(headedContext, no, url, artifactDir) {
 
         const rawTitle = await newPageTitle(headedPage);
         const normalizedTitle = rawTitle.replace(/[\\/:*?"<>|]/g, "");
+        
+        // WindowsのMAX_PATH (260文字) を考慮し、タイトルを最大50文字に切り詰めて安全装置とします
+        const maxTitleLength = 50;
+        const truncatedTitle = normalizedTitle.length > maxTitleLength 
+            ? normalizedTitle.substring(0, maxTitleLength) + "..." 
+            : normalizedTitle;
+
+        const baseFilename = `page${no}_${truncatedTitle}`;
 
         // 除外パターンの確認
         const ignorePatterns = ['/video', '/images', '/search', '/shop', '/news', '/maps', '/translate', '/weather', '/sports', '/finance', '/entertainment'];
@@ -220,8 +269,6 @@ async function processUrl(headedContext, no, url, artifactDir) {
 
         // 全ページのキャプチャが完了した後にタブを閉じます
         await headedPage.close();
-
-        const baseFilename = `page${no}_${normalizedTitle}`;
 
         return {
             no,
