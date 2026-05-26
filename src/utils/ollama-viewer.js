@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const http = require('http');
+const readline = require('readline');
 
 /**
  * Ollama Real-time Viewer
@@ -51,7 +52,8 @@ if (parentPid) {
 }
 
 function clearScreen() {
-  process.stdout.write('\x1Bc');
+  readline.cursorTo(process.stdout, 0, 0);
+  readline.clearScreenDown(process.stdout);
 }
 
 /**

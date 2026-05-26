@@ -13,6 +13,121 @@ async function newPageTitle(page) {
     }
 }
 
+// 2つのURLが「同一記事の分割ページ」である可能性が高いか判定するヘルパー
+function isSameArticleUrl(urlA, urlB) {
+    try {
+        const uA = new URL(urlA);
+        const uB = new URL(urlB);
+
+        if (uA.hostname !== uB.hostname) return false;
+
+        const paramsA = uA.searchParams;
+        const paramsB = uB.searchParams;
+
+        // 代表的な記事IDキーの検証 (値が異なれば別記事とする)
+        const articleKeys = ['p', 'id', 'post', 'article_id', 'entry_id'];
+        for (const key of articleKeys) {
+            if (paramsA.has(key) && paramsB.has(key)) {
+                if (paramsA.get(key) !== paramsB.get(key)) {
+                    return false;
+                }
+            }
+        }
+
+        // パスの類似性検証
+        const pathA = uA.pathname;
+        const pathB = uB.pathname;
+        if (pathA === pathB) return true;
+
+        const segsA = pathA.split('/').filter(Boolean);
+        const segsB = pathB.split('/').filter(Boolean);
+
+        if (segsA.length === 0 || segsB.length === 0) return true;
+
+        const minLen = Math.min(segsA.length, segsB.length);
+        let matchCount = 0;
+        for (let i = 0; i < minLen; i++) {
+            if (segsA[i] === segsB[i]) {
+                matchCount++;
+            } else {
+                break;
+            }
+        }
+
+        return matchCount > 0 && matchCount >= (minLen - 1);
+    } catch (e) {
+        return false;
+    }
+}
+
+// ページ分割された「次のページ」へのリンクを自律検出するヘルパー
+async function detectNextPageLink(page, originalUrl) {
+    try {
+        // 1. link[rel="next"] を確認
+        const linkHref = await page.locator('link[rel="next"]').getAttribute('href', { timeout: 1000 }).catch(() => null);
+        if (linkHref) {
+            const targetUrl = new URL(linkHref, page.url()).toString();
+            if (isSameArticleUrl(originalUrl, targetUrl)) return targetUrl;
+        }
+
+        // 2. a[rel="next"] を確認
+        const aHref = await page.locator('a[rel="next"]').first().getAttribute('href', { timeout: 1000 }).catch(() => null);
+        if (aHref) {
+            const targetUrl = new URL(aHref, page.url()).toString();
+            if (isSameArticleUrl(originalUrl, targetUrl)) return targetUrl;
+        }
+
+        // 3. 一般的なパジネーションのテキストマッチによるヒューリスティック判定
+        const nextTexts = ["次のページ", "次へ", "next", "»", ">"];
+        const ignoreTexts = ["次の記事", "次のエントリ", "次の投稿", "next post", "next article", "前の記事", "前のエントリ", "前の投稿"];
+        const anchors = page.locator('a');
+        const count = await anchors.count();
+        
+        for (let i = 0; i < count; i++) {
+            const a = anchors.nth(i);
+            const text = (await a.innerText().catch(() => '')).trim().toLowerCase();
+            const href = await a.getAttribute('href').catch(() => null);
+            
+            if (href) {
+                // 回避すべきクロノロジカルワードが含まれている場合はスキップ
+                if (ignoreTexts.some(it => text.includes(it))) {
+                    continue;
+                }
+
+                if (nextTexts.some(nt => text === nt || text.includes(nt))) {
+                    const targetUrl = new URL(href, page.url()).toString();
+                    
+                    if (isSameArticleUrl(originalUrl, targetUrl) && targetUrl !== page.url()) {
+                        // 親要素のクラス名による時系列ナビゲーションコンテナの除外
+                        const isChronological = await a.evaluate(el => {
+                            let parent = el.parentElement;
+                            while (parent) {
+                                const className = (parent.className || '').toLowerCase();
+                                if (className.includes('post-navigation') || 
+                                    className.includes('prev-next') || 
+                                    className.includes('nav-links') || 
+                                    className.includes('adjacent')) {
+                                    return true;
+                                }
+                                parent = parent.parentElement;
+                            }
+                            return false;
+                        }).catch(() => false);
+
+                        if (!isChronological) {
+                            return targetUrl;
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        // 検出中の軽微なエラーは無視します
+    }
+    return null;
+}
+
+
 // 1件のURLを処理する内部ヘルパー (並列実行の単位)
 async function processUrl(headedContext, no, url, artifactDir) {
     const headedPage = await headedContext.newPage();
@@ -72,10 +187,38 @@ async function processUrl(headedContext, no, url, artifactDir) {
         }
 
         // HTMLコンテンツをメモリ上から直接取得します (追加のサーバーリクエストは発生しません)
-        const htmlContent = await headedPage.content();
+        let htmlContent = await headedPage.content();
 
-        // ユーザーに閲覧時間を設けた後にタブを閉じます
-        await sleep(config.search.viewTime);
+        // --- 複数ページ巡回 (Pagination Loop) ---
+        const maxPaginationDepth = config.search.maxPaginationDepth || 5;
+        let currentPageIndex = 1;
+        const visitedUrls = new Set([url]);
+
+        while (currentPageIndex < maxPaginationDepth) {
+            const nextUrl = await detectNextPageLink(headedPage, url);
+            if (!nextUrl || visitedUrls.has(nextUrl)) {
+                break;
+            }
+
+            visitedUrls.add(nextUrl);
+            console.log(`\n[Pagination] URL ${no}: Navigating to page ${currentPageIndex + 1} -> ${nextUrl}`);
+
+            try {
+                // 次のページへ遷移します
+                await headedPage.goto(nextUrl, { timeout: 30000, waitUntil: 'domcontentloaded' });
+                await sleep(config.search.viewTime);
+                const nextPageHtml = await headedPage.content();
+
+                // 次のページのHTMLを区切り線付きでマージします
+                htmlContent += `\n\n<hr class="page-divider" />\n\n${nextPageHtml}`;
+                currentPageIndex++;
+            } catch (err) {
+                console.warn(`[Warning] Failed to capture pagination page ${currentPageIndex + 1}: ${err.message}`);
+                break;
+            }
+        }
+
+        // 全ページのキャプチャが完了した後にタブを閉じます
         await headedPage.close();
 
         const baseFilename = `page${no}_${normalizedTitle}`;

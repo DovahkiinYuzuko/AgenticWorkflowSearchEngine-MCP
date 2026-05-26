@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const configFileName = 'models_config.json';
+const configFileName = 'config.json';
 // 1. カレントディレクトリの設定 (実行時の優先設定)
 const cwdConfigPath = path.resolve(process.cwd(), configFileName);
 // 2. ホームディレクトリの設定

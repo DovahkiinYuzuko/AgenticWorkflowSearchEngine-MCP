@@ -22,7 +22,7 @@ function getCacheSummaryPath(cacheKey) {
 /**
  * キャッシュの有効性を確認し、有効であればサマリーを返します
  * @param {string} keywords 検索キーワード
- * @param {object} cacheConfig models_config.json の cache 設定オブジェクト
+ * @param {object} cacheConfig config.json の cache 設定オブジェクト
  * @returns {{ hit: boolean, summary?: string, reason?: string }}
  */
 async function checkCache(keywords, cacheConfig) {
@@ -53,7 +53,7 @@ async function checkCache(keywords, cacheConfig) {
  * 生成されたサマリーMarkdownをキャッシュとして保存します
  * @param {string} keywords 検索キーワード
  * @param {string} summary 保存するMarkdown文字列
- * @param {object} cacheConfig models_config.json の cache 設定オブジェクト
+ * @param {object} cacheConfig config.json の cache 設定オブジェクト
  */
 function saveCache(keywords, summary, cacheConfig) {
     if (!cacheConfig || !cacheConfig.enabled) return;
