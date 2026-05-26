@@ -3,11 +3,11 @@ const path = require('path');
 const os = require('os');
 
 const configFileName = 'models_config.json';
-// 1. カレントディレクトリ (実行場所)
+// 1. カレントディレクトリの設定 (実行時の優先設定)
 const cwdConfigPath = path.resolve(process.cwd(), configFileName);
-// 2. ユーザーホームディレクトリ
+// 2. ホームディレクトリの設定
 const homeConfigPath = path.resolve(os.homedir(), '.aw-se.json');
-// 3. プログラムの実体フォルダ (フォールバック)
+// 3. アプリケーションディレクトリのデフォルト設定 (フォールバック)
 const realAppDir = fs.realpathSync(path.resolve(__dirname, '..'));
 const appConfigPath = path.resolve(realAppDir, configFileName);
 
@@ -43,10 +43,14 @@ let config = {
     loadedFrom: 'Defaults'
 };
 
-// 簡易的なDeep Merge関数 (optionsなどのネストされたプロパティを維持するため)
+/**
+ * 簡易的なディープマージ関数
+ * @param {Object} target マージ先
+ * @param {Object} source マージ元
+ */
 function mergeConfig(target, source) {
     for (const key in source) {
-        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {  
             if (!target[key]) target[key] = {};
             mergeConfig(target[key], source[key]);
         } else {
@@ -73,7 +77,7 @@ try {
         config.loadedFrom = targetConfigPath;
     }
 } catch (error) {
-    console.error("設定ファイルの読み込みに失敗しました。デフォルト設定を使用します: / Failed to load config file. Using default settings:", error);
+    console.error("設定ファイルの読み込み中にエラーが発生しました。デフォルト設定を使用します。 / Failed to load config file. Using default settings:", error);
 }
 
 module.exports = config;

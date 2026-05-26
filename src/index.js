@@ -46,6 +46,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                             type: "boolean",
                             description: "[ENG] Generate a final comprehensive summary after processing all pages. / [JPN] 全ページを処理した後に、最終的な総合要約を生成するかどうか。",
                             default: false
+                        },
+                        mode: {
+                            type: "string",
+                            description: "[ENG] Search mode. 'web' for general web crawling, 'academic' for scrape-free arXiv & PubMed API search. / [JPN] 検索モード。『web』は通常のWeb巡回、『academic』は公式APIを叩く論文検索。",
+                            default: "web"
+                        },
+                        deep_dive: {
+                            type: "string",
+                            description: "[ENG] Recursive deep-dive search behavior. 'auto' (fully autonomous), 'none' (disabled, but recommends keywords). / [JPN] 二段階検索（深掘り）の挙動。『auto』（完全自律）、『none』（無効化。ただし推奨キーワードを表示）",
+                            default: "auto"
                         }
                     },
                     required: ["keywords", "intent"]
@@ -64,10 +74,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const intent = args.intent;
         const limit = args.limit || 5;
         const final_summary = args.final_summary || false;
+        const mode = args.mode || "web";
+        const deep_dive = args.deep_dive || "auto";
 
         try {
             // パイプラインを実行し、返ってきた統合Markdownテキストをそのまま親AIに返します
-            const resultMarkdown = await runPipeline(keywords, intent, limit, final_summary);
+            const resultMarkdown = await runPipeline(keywords, intent, limit, final_summary, mode, deep_dive);
             return {
                 content: [
                     {

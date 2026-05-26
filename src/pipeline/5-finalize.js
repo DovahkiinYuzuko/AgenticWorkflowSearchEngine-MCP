@@ -26,8 +26,8 @@ async function generateFinalSummary(results, intent) {
     try {
         const locale = Intl.DateTimeFormat().resolvedOptions().locale;
         
-        // 最終まとめ用のプロンプトを構築
-        const prompt = `You are a professional research assistant. Based on the following "Search Intent" and the "Summaries" extracted from multiple sources, please provide a comprehensive and definitive answer.
+        // 最終まとめ用およびファクトチェック用のプロンプトを構築
+        const prompt = `You are a professional research assistant. Based on the following "Search Intent" and the "Summaries" extracted from multiple sources, please provide a comprehensive and definitive answer, including an automated Fact-Checking & Contrast Analysis.
 
 【Search Intent】
 ${intent}
@@ -36,11 +36,33 @@ ${intent}
 ${validSummaries}
 
 【Instructions】
-1. Synthesize all information to provide a clear, structured, and comprehensive answer that directly addresses the Search Intent.
-2. If there are conflicting informations between sources, mention them clearly.
-3. You MUST output the result ONLY in the language of system locale "${locale}".
-4. Maintain the source citations (e.g., [Source: [Heading Name](URL#Anchor)]) where possible to ensure traceability.
-5. Do not include any introductory phrases like "Here is the summary" or "Based on the provided information". Start directly with the answer.`;
+You MUST structure your final output exactly in the following Markdown format. The content must be entirely written in the language corresponding to the system locale "${locale}".
+
+Format:
+---
+
+## Fact-Checking & Contrast Analysis (論点対立・合意の分析)
+
+### 🤝 Consensus Points (各ソースで一致している見解)
+(List points where the sources agree, citing the sources)
+
+### ⚡ Contradictions & Conflicts (主張が対立している論点)
+(List topics where the sources have conflicting or mismatched claims, explaining the differences)
+
+### ⚠️ Unverified or Biased Claims (注意すべき主張・広告的な表現)
+(List claims that appear to lack objective evidence, show commercial bias, or represent isolated opinions)
+
+---
+
+## Comprehensive Synthesis (総合的な検索意図への回答)
+(Provide a clear, structured, and deep summary that directly addresses the overall Search Intent, integrating the sources)
+
+---
+
+【Additional Rules】
+1. You MUST output the result ONLY in the language of system locale "${locale}".
+2. Maintain the source citations (e.g., [Source: [Heading Name](URL#Anchor)]) where possible to ensure traceability.
+3. Do not include any introductory phrases like "Here is the summary". Start directly with the markdown content.`;
 
         // Ollama Viewerにフェーズの切り替えを通知
         broadcast(`\n\n--- Generating Final Comprehensive Answer / 最終回答を生成中... ---\n\n`);

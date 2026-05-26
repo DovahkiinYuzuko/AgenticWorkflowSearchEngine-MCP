@@ -114,12 +114,69 @@ async function unloadOllamaModel(host, model) {
     }
 }
 
-async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
+/**
+ * AIによる次の詳細深掘りクエリを自動生成する。
+ */
+async function generateDeepDiveQuery(finalSummary, originalIntent) {
+    if (!config.ollama || !config.ollama.enabled) return null;
+    
+    const prompt = `Based on the following research summary and original search intent, identify one highly specific and critical concept, claim, or question that remains unresolved or needs further academic/scientific evidence.
+Generate a single targeted search query and search intent to investigate this topic deeper.
+
+You MUST output the result ONLY in the following valid JSON format. Do not include any markdown fences, notes, or extra text.
+Format:
+{
+  "shouldDeepDive": true,
+  "keywords": "specific search terms here",
+  "intent": "the intent of the follow-up search here"
+}
+
+If you determine that the current summary is already fully comprehensive and no further search is necessary, return:
+{
+  "shouldDeepDive": false,
+  "keywords": "",
+  "intent": ""
+}
+
+【Original Intent】
+${originalIntent}
+
+【Current Summary】
+${finalSummary}
+`;
+    
+    try {
+        const response = await fetch(`${config.ollama.host}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: config.ollama.model,
+                prompt: prompt,
+                stream: false,
+                options: { temperature: 0.1 }
+            })
+        });
+        
+        if (!response.ok) return null;
+        const data = await response.json();
+        const cleanJsonStr = data.response.replace(/```json/g, '').replace(/```/g, '').trim();
+        const result = JSON.parse(cleanJsonStr);
+        return result;
+    } catch (err) {
+        cliLogger.warn(`[Warning] Failed to generate deep-dive query: ${err.message}`);
+        return null;
+    }
+}
+
+async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mode = 'web', deepDive = 'interactive') {
     const limit = limitInput || config.search.defaultLimit;
 
+    // キャッシュキーにモードを含めることで、webとacademicのキャッシュ衝突を回避
+    const cacheKey = `${mode}:${keywords}`;
+
     if (config.cache && config.cache.enabled) {
-        cliLogger.startSpinner(`Checking cache for "${keywords}"...`);
-        const cached = await checkCache(keywords, config.cache);
+        cliLogger.startSpinner(`Checking cache for "${cacheKey}"...`);
+        const cached = await checkCache(cacheKey, config.cache);
         if (cached.hit) {
             cliLogger.stopSpinner(true, `Cache hit!`);
             return cached.summary;
@@ -148,70 +205,80 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
         }
     }
 
-    cliLogger.startSpinner("Launching browser...");
+    let headedBrowser = null;
+    let headedContext = null;
+    let headedPage = null;
 
-    const headedBrowser = await chromium.launch({
-        headless: false,
-        slowMo: config.search.slowMo
-    });
-
-    const headedContext = await headedBrowser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    });
-    const headedPage = await headedContext.newPage();
-
+    let phase1Results = [];
     let results = [];
     let hasRefinementError = !ollamaActive && config.ollama.enabled;
-    let finalAnswer = null; // tryブロック外で宣言することで、エラー時も変数のスコープを保証します
+    let finalAnswer = null;
 
     try {
-        cliLogger.updateSpinner(`Searching for "${keywords}"...`);
-        const searchResults = await webSearch(headedPage, keywords, limit);
-        cliLogger.stopSpinner(true, `Retrieved ${searchResults.length} pages.`);
+        if (mode === 'academic') {
+            cliLogger.info(`[Academic Mode] Fetching papers using APIs for: "${keywords}"`);
+            const academicSearch = require('./academic-search');
+            phase1Results = await academicSearch(keywords, limit);
+            cliLogger.info(`Retrieved ${phase1Results.length} academic papers.`);
+        } else {
+            cliLogger.startSpinner("Launching browser...");
+            headedBrowser = await chromium.launch({
+                headless: false,
+                slowMo: config.search.slowMo
+            });
 
-        if (searchResults.length > 0) {
-            const concurrency = config.search.concurrency || 1;
-            cliLogger.info(`Starting page capture...`);
+            headedContext = await headedBrowser.newContext({
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            });
+            headedPage = await headedContext.newPage();
 
-            // ブラウザがURLを巡回する間に、バックグラウンドでOllamaモデルをウォームアップします（並列プリロード）
-            if (ollamaActive) {
-                preloadOllamaModel(config.ollama.host, config.ollama.model, config.ollama.options); // await なし：fire-and-forget
-            }
+            cliLogger.updateSpinner(`Searching for "${keywords}"...`);
+            const searchResults = await webSearch(headedPage, keywords, limit);
+            cliLogger.stopSpinner(true, `Retrieved ${searchResults.length} pages.`);
 
-            const captureReport = await captureUrls(
-                headedContext,
-                searchResults,
-                keywords,
-                (current, total, label) => {
-                    cliLogger.progressBar(current, total, `${label}`);
-                }
-            );
+            if (searchResults.length > 0) {
+                const concurrency = config.search.concurrency || 1;
+                cliLogger.info(`Starting page capture...`);
 
-            cliLogger.info("Phase 1: Extraction...");
-            const phase1Results = [];
-            for (let i = 0; i < captureReport.length; i++) {
-                const item = captureReport[i];
-                if (item.error || item.skipped) {
-                    results.push(item);
-                    continue;
+                if (ollamaActive) {
+                    preloadOllamaModel(config.ollama.host, config.ollama.model, config.ollama.options);
                 }
 
-                const extractResult = await extractToMarkdown(item);
-                cliLogger.progressBar(i, captureReport.length, `Extracting: ${extractResult.mdFilename}`);
+                const captureReport = await captureUrls(
+                    headedContext,
+                    searchResults,
+                    keywords,
+                    (current, total, label) => {
+                        cliLogger.progressBar(current, total, `${label}`);
+                    }
+                );
 
-                phase1Results.push({
-                    item,
-                    extractResult
-                });
+                cliLogger.info("Phase 1: Extraction...");
+                for (let i = 0; i < captureReport.length; i++) {
+                    const item = captureReport[i];
+                    if (item.error || item.skipped) {
+                        results.push(item);
+                        continue;
+                    }
+
+                    const extractResult = await extractToMarkdown(item);
+                    cliLogger.progressBar(i, captureReport.length, `Extracting: ${extractResult.mdFilename}`);
+
+                    phase1Results.push({
+                        item,
+                        extractResult
+                    });
+                }
+                cliLogger.progressBar(captureReport.length, captureReport.length, "Phase 1 completed.");
+
+                if (headedBrowser && headedBrowser.isConnected()) {
+                    cliLogger.info("Closing browser... / ブラウザを閉じます...");
+                    await headedBrowser.close();
+                }
             }
-            cliLogger.progressBar(captureReport.length, captureReport.length, "Phase 1 completed.");
+        }
 
-            // HTMLキャプチャ完了後にブラウザを閉じます（プリロードは既にバックグラウンドで実行中）
-            if (headedBrowser && headedBrowser.isConnected()) {
-                cliLogger.info("Closing browser... / ブラウザを閉じます...");
-                await headedBrowser.close();
-            }
-
+        if (phase1Results.length > 0) {
             cliLogger.info("Phase 2: Refinement...");
             for (let i = 0; i < phase1Results.length; i++) {
                 if (ollamaActive) {
@@ -269,7 +336,6 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
         cliLogger.error("Pipeline error:", err);
         throw err;
     } finally {
-        // エラー・成功問わず、確実にリソースを解放します
         if (headedBrowser && headedBrowser.isConnected()) await headedBrowser.close();
         stopRelayServer();
         if (ollamaActive) {
@@ -279,10 +345,10 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
 
     let markdownOutput = `# Search Result Summary\n`;
     markdownOutput += `- **Keywords**: \`${keywords}\`\n`;
-    markdownOutput += `- **Search Intent**: *"${intent}"*\n\n`;
+    markdownOutput += `- **Search Intent**: *"${intent}"*\n`;
+    markdownOutput += `- **Search Mode**: \`${mode}\`\n\n`;
 
     if (finalAnswer) {
-        markdownOutput += `## Final Answer\n`;
         markdownOutput += `${finalAnswer}\n\n`;
         markdownOutput += `---\n\n`;
     }
@@ -292,7 +358,7 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
         markdownOutput += `> Refinement issue occurred.\n\n`;
     }
 
-    markdownOutput += `---\n\n`;
+    markdownOutput += `## Source Details\n\n`;
 
     for (const res of results) {
         if (res.error) {
@@ -323,7 +389,76 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary) {
         markdownOutput += `---\n\n`;
     }
 
-    saveCache(keywords, markdownOutput, config.cache);
+    // --- 二段階検索 (Autonomous Deep-Dive) の処理 ---
+    if (finalAnswer && ollamaActive && deepDive !== 'none') {
+        cliLogger.startSpinner("Checking if deep-dive search is required...");
+        const deepDivePlan = await generateDeepDiveQuery(finalAnswer, intent);
+        cliLogger.stopSpinner(true, "Deep-dive query check complete.");
+
+        if (deepDivePlan && deepDivePlan.shouldDeepDive && deepDivePlan.keywords) {
+            let executeDeepDive = false;
+
+            if (deepDive === 'interactive') {
+                cliLogger.info(`\n[Deep-Dive Proposal] AI recommends follow-up search:\n- Keywords: "${deepDivePlan.keywords}"\n- Intent: "${deepDivePlan.intent}"\n`);
+                
+                const readline = require('readline');
+                const rl = readline.createInterface({
+                    input: process.stdin,
+                    output: process.stdout
+                });
+
+                const ans = await new Promise(resolve => {
+                    rl.question('Would you like to execute this autonomous deep-dive search? (Y/n): ', response => {
+                        rl.close();
+                        resolve(response.trim().toLowerCase());
+                    });
+                });
+
+                if (ans === '' || ans === 'y' || ans === 'yes') {
+                    executeDeepDive = true;
+                }
+            } else if (deepDive === 'auto') {
+                cliLogger.info(`[Deep-Dive Auto] Executing follow-up search:\n- Keywords: "${deepDivePlan.keywords}"\n- Intent: "${deepDivePlan.intent}"`);
+                executeDeepDive = true;
+            }
+
+            if (executeDeepDive) {
+                // 再帰的にrunPipelineを呼び出す (再帰の限界を防ぐため二次検索はdeepDive='none'で実行)
+                const deepDiveLimit = 3;
+                const deepDiveReport = await runPipeline(
+                    deepDivePlan.keywords,
+                    deepDivePlan.intent,
+                    deepDiveLimit,
+                    true,
+                    mode,
+                    'none'
+                );
+
+                markdownOutput += `\n\n## 🔍 Autonomous Deep-Dive Research\n`;
+                markdownOutput += `The AI autonomously initiated a secondary deep-dive search to investigate: **"${deepDivePlan.keywords}"**.\n\n`;
+                
+                // 不要なヘッダー部分を除去してマージ
+                const cleanReport = deepDiveReport.replace(/# Search Result Summary[\s\S]*?(?=## Fact-Checking|### Page|## Final Answer)/i, '');
+                markdownOutput += cleanReport;
+            }
+        } else {
+            cliLogger.info("No further deep-dive research is required. / 追加調査の必要はありません。");
+        }
+    } else if (finalAnswer && deepDive === 'none' && !keywords.includes('deep-dive-parent')) {
+        // 二次検索を行わない設定（かつ二次検索実行中ではない親）の場合、レポート末尾にキーワード推薦を追加
+        cliLogger.startSpinner("Extracting deep-dive recommendation keywords...");
+        const deepDivePlan = await generateDeepDiveQuery(finalAnswer, intent);
+        cliLogger.stopSpinner(true, "Recommendation complete.");
+
+        if (deepDivePlan && deepDivePlan.shouldDeepDive && deepDivePlan.keywords) {
+            markdownOutput += `\n\n## 💡 Next Recommended Research (AI推奨の追加検索テーマ)\n`;
+            markdownOutput += `- **Keywords**: \`${deepDivePlan.keywords}\`\n`;
+            markdownOutput += `- **Search Intent**: *"${deepDivePlan.intent}"*\n`;
+            markdownOutput += `*(You can run this query using \`--keywords "${deepDivePlan.keywords}" --intent "${deepDivePlan.intent}"\` for deeper insights.)*\n`;
+        }
+    }
+
+    saveCache(cacheKey, markdownOutput, config.cache);
 
     return markdownOutput;
 }
