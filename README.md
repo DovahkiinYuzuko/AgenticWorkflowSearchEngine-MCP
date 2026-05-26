@@ -61,18 +61,34 @@ npx aw-se --help
 
 ---
 
-### MCPサーバー設定方法（claude_desktop_config.json の書き方）
+### AIアシスタントへの導入方法 (Installation for AI Assistants)
 
-AIクライアント（Claude Desktop 等）でこのMCPサーバーを使用するための設定ファイルへの追記例です。
-npmパッケージとして公開されているため、ローカルへのパス指定は不要で、非常にシンプルに設定できます。
+npmパッケージとして公開されているため、各AIアシスタントのCLIや設定から一発で導入可能です。
 
-#### 1. 設定ファイルの場所
+#### 1. CLIから一撃で導入する場合 (推奨)
+
+**Claude Code**:
+```bash
+claude mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
+```
+
+**Antigravity 2.0**:
+```bash
+antigravity mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
+```
+
+**Cursor / Windsurf など**:
+Universal MCP Installerを使用すると自動で設定ファイルに書き込まれます。
+```bash
+npx universal-mcp-installer install agentic-workflow-search-engine-mcp
+```
+
+#### 2. 手動で設定ファイル (claude_desktop_config.json 等) に追記する場合
+
+Claude Desktopなどの場合は、以下の設定を `mcpServers` に追加してください。
+
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS / Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-#### 2. 設定JSONの記述例
-
-設定ファイルを開き、`mcpServers` の中に以下の設定を追加してください。
 
 ```json
 {
@@ -87,7 +103,7 @@ npmパッケージとして公開されているため、ローカルへのパ�
   }
 }
 ```
-これだけで、次回Claude Desktop起動時に自動で最新版がダウンロードされ、MCPサーバーとして認識されます！
+これだけで、次回起動時に自動で最新版がダウンロードされ、MCPサーバーとして認識されます。
 
 ---
 
@@ -214,17 +230,34 @@ npx aw-se --help
 
 ---
 
-### MCP Configuration (claude_desktop_config.json)
+### Installation for AI Assistants
 
-To use this server with an AI client like Claude Desktop, add the following configuration. Since the package is published on npm, you don't need to specify complex local paths!
+Since the package is published on npm, you can install it instantly using CLI commands or configuration files.
 
-#### 1. Configuration File Path
+#### 1. Quick Installation via CLI (Recommended)
+
+**Claude Code**:
+```bash
+claude mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
+```
+
+**Antigravity 2.0**:
+```bash
+antigravity mcp add aw-se-mcp -- npx -y agentic-workflow-search-engine-mcp
+```
+
+**Cursor / Windsurf, etc.**:
+Use the Universal MCP Installer to automatically configure your editor.
+```bash
+npx universal-mcp-installer install agentic-workflow-search-engine-mcp
+```
+
+#### 2. Manual Configuration (claude_desktop_config.json, etc.)
+
+For Claude Desktop, add the following configuration to your `mcpServers` object.
+
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS / Linux**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-#### 2. Configuration JSON Example
-
-Add the following to your `mcpServers` object:
 
 ```json
 {
