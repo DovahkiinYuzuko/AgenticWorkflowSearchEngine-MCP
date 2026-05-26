@@ -4,7 +4,26 @@ const boxen = require('boxen');
 const http = require('http');
 const readline = require('readline');
 
+// 代替スクリーンバッファに切り替えて、画面のリセットを防ぎます
+process.stdout.write('\x1b[?1049h');
+
+// 元の通常スクリーンバッファに復元するクリーンアップ処理
+function restoreScreen() {
+  process.stdout.write('\x1b[?1049l');
+}
+
+// プロセスの各種終了イベント・例外時にも確実に元のスクリーンを復元します
+process.on('exit', restoreScreen);
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
+process.on('uncaughtException', (err) => {
+  restoreScreen();
+  console.error('\n[Viewer Error]', err);
+  process.exit(1);
+});
+
 /**
+
  * Ollama Real-time Viewer
  * 
  * [ENG] This script connects to the streaming relay server and displays
