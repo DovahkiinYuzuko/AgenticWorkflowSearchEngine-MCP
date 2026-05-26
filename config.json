@@ -1,0 +1,30 @@
+{
+  "search": {
+    "engine": "https://www.bing.com",
+    "defaultLimit": 5,
+    "slowMo": 500,
+    "waitAfterSearch": 3000,
+    "viewTime": 4000,
+    "concurrency": 2,
+    "maxPaginationDepth": 5
+  },
+  "ollama": {
+    "enabled": true,
+    "model": "gemma4:e4b-it-q4_K_M",
+    "host": "http://127.0.0.1:11434",
+    "timeout": 600,
+    "maxInputChars": -1,
+    "system": "You MUST strictly remain neutral and objective. Never include your own opinions, interpretations, or evaluations. Adopt a highly nuanced, objective tone: avoid making absolute or definitive assertions unless they are universally accepted facts (e.g., 1+1=2), and instead use objective phrasing such as 'According to the text, ...', 'It is reported that...', or 'The source states that...'. When extracting claims or facts, always cite or reference the corresponding section, heading, or context from the source text to verify the source of information. Strictly DO NOT generate any conversational fillers, introductory remarks, greetings, follow-up suggestions, or recommendations. Output ONLY the refined, objective core facts directly, without providing any extra advice or next steps.",
+    "options": {
+      "temperature": 0.4,
+      "top_p": 0.9,
+      "top_k": 40,
+      "repeat_penalty": 1.3,
+      "num_ctx": 8192
+    }
+  },
+  "cache": {
+    "enabled": true,
+    "maxAgeHours": 24
+  }
+}

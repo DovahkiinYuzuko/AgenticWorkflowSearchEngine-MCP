@@ -23,7 +23,7 @@ let config = {
     },
     ollama: {
         enabled: false,
-        model: "gemma4-e4b-custom-uncensored:latest",
+        model: "gemma4:e4b-it-q4_K_M",
         host: "http://127.0.0.1:11434",
         timeout: 300,
         maxInputChars: -1,
@@ -75,9 +75,25 @@ try {
         const parsed = JSON.parse(fileContent);
         mergeConfig(config, parsed);
         config.loadedFrom = targetConfigPath;
+    } else {
+        // どこにも設定ファイルが存在しない場合、自動生成する
+        // デフォルトではアプリディレクトリに作成を試み、失敗したらホームディレクトリに作成する
+        const configToSave = { ...config };
+        delete configToSave.loadedFrom; // 保存用データからloadedFromを削除
+
+        let savePath = appConfigPath;
+        try {
+            fs.writeFileSync(savePath, JSON.stringify(configToSave, null, 4), 'utf-8');
+        } catch (e) {
+            // 権限エラー等でアプリディレクトリに書けない場合はホームディレクトリにフォールバック
+            savePath = homeConfigPath;
+            fs.writeFileSync(savePath, JSON.stringify(configToSave, null, 4), 'utf-8');
+        }
+        console.log(`[AW-SE-MCP] 設定ファイルが見つからなかったため、デフォルト設定を自動生成しました: ${savePath}`);
+        config.loadedFrom = savePath;
     }
 } catch (error) {
-    console.error("設定ファイルの読み込み中にエラーが発生しました。デフォルト設定を使用します。 / Failed to load config file. Using default settings:", error);
+    console.error("設定ファイルの読み込みまたは作成中にエラーが発生しました。デフォルト設定を使用します。 / Failed to load or create config file. Using default settings:", error);
 }
 
 module.exports = config;

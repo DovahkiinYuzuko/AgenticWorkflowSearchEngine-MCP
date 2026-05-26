@@ -183,6 +183,25 @@ MCPサーバーを登録すると、AIは以下の `search_and_extract` ツー�
 
 ---
 
+### 設定ファイル (config.json) のカスタマイズ
+
+本ツールはダウンロード時に同梱されている `config.json` の設定をデフォルト値として動作します。環境に合わせて適宜書き換えて使用してください。設定ファイルが存在しない場合（`npx` での初回起動時など）は、自動的にデフォルト設定ファイルが生成されます。
+
+| カテゴリ | パラメータ名 | デフォルト値 | 役割・作用 |
+| :--- | :--- | :--- | :--- |
+| **search** | `engine` | `"https://www.bing.com"` | 最初に使用する検索エンジンのURL。 |
+| | `defaultLimit` | `5` | デフォルトの巡回ページ数（APIからの指定で上書き可能）。 |
+| | `slowMo` | `500` | （サイト負荷軽減）ブラウザ操作の遅延時間（ミリ秒）。 |
+| | `waitAfterSearch`| `3000` | （サイト負荷軽減）検索結果表示後の待機時間（ミリ秒）。 |
+| | `viewTime` | `4000` | （サイト負荷軽減）各ページアクセス時の待機時間（ミリ秒）。 |
+| | `concurrency` | `2` | 並列で処理する最大タブ数。増やすと速くなりますがメモリを消費します。 |
+| **ollama** | `model` | `"gemma4:e4b-it-q4_K_M"` | 情報抽出に使用するローカルLLMのモデル名。 |
+| | `host` | `"http://127.0.0.1:11434"`| OllamaサーバーのエンドポイントURL。 |
+| | `maxInputChars` | `-1` | LLMに渡すテキストの最大文字数制限。`-1` で無制限。 |
+| | `system` | (長文のため省略) | 事前設定されるシステムプロンプト。客観的な情報抽出を指示しています。 |
+
+---
+
 ### スタンドアロンCLIでの使い方
 
 MCPサーバーとしてではなく、単体のコマンドラインツール（CLI）として直接実行して、調査レポートを端末に出力させることも可能です。
@@ -383,6 +402,25 @@ Performs keyword searches, crawls each page using Playwright, sanitizes content 
 | `final_summary` | `boolean` | No | `false` | Whether to generate a single synthesized final answer crossing all pages. |
 | `mode` | `string` | No | `"web"` | Search mode: `"web"` (dynamic crawl) or `"academic"` (scrape-free API search via arXiv & PubMed). |
 | `deep_dive` | `string` | No | `"auto"` | Multi-phase deep-dive behavior: `"auto"` (AI autonomously plans and executes a secondary search) or `"none"` (AI only recommends terms). |
+
+---
+
+### Customizing Configuration (config.json)
+
+The tool operates using the settings in the included `config.json` as default values. Please modify them according to your environment. If the file is missing (e.g., first run via `npx`), default settings will be generated automatically.
+
+| Category | Parameter | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| **search** | `engine` | `"https://www.bing.com"` | The default search engine URL. |
+| | `defaultLimit` | `5` | Default number of pages to crawl (can be overridden by API). |
+| | `slowMo` | `500` | (Server load reduction) Delay between browser actions in ms. |
+| | `waitAfterSearch`| `3000` | (Server load reduction) Wait time after loading search results in ms. |
+| | `viewTime` | `4000` | (Server load reduction) Wait time on each visited page in ms. |
+| | `concurrency` | `2` | Maximum number of concurrent browser tabs. |
+| **ollama** | `model` | `"gemma4:e4b-it-q4_K_M"` | The local LLM model name to use for extraction. |
+| | `host` | `"http://127.0.0.1:11434"`| The endpoint URL of your Ollama server. |
+| | `maxInputChars` | `-1` | Maximum characters sent to LLM per chunk. `-1` means unlimited. |
+| | `system` | (Omitted for brevity)| The system prompt instructing the AI to remain objective and factual. |
 
 ---
 

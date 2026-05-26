@@ -17,6 +17,7 @@
 !llms.txt
 !LICENSE
 !NOTICE.md
+!config.json
 
 # ソースコード
 # 注意: gitignoreのホワイトリスト方式では、
