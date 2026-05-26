@@ -1,7 +1,9 @@
 const { Server } = require("@modelcontextprotocol/sdk/server/index.js");
 const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
-const { CallToolRequestSchema, ListToolsRequestSchema } = require("@modelcontextprotocol/sdk/types.js");
+const { CallToolRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } = require("@modelcontextprotocol/sdk/types.js");
 const { runPipeline } = require("./pipeline");
+const fs = require("fs/promises");
+const path = require("path");
 const cliLogger = require("./utils/cli-logger");
 
 // MCPサーバー起動時は StdOut や StdErr の雑多な出力を完全に停止して通信を守ります
@@ -18,6 +20,67 @@ const server = new Server(
         },
     }
 );
+
+// リソース一覧の提供
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    const artifactsDir = path.join(process.cwd(), 'artifacts');
+    const resources = [];
+    
+    async function scanDir(dir) {
+        try {
+            const entries = await fs.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    await scanDir(fullPath);
+                } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.csv'))) {
+                    const relativePath = path.relative(process.cwd(), fullPath);
+                    // file:/// スキームで絶対パスを渡す
+                    const uri = `file:///${fullPath.replace(/\\/g, '/')}`;
+                    resources.push({
+                        uri,
+                        name: relativePath,
+                        description: `Extracted or indexed file: ${entry.name}`,
+                        mimeType: entry.name.endsWith('.csv') ? 'text/csv' : 'text/markdown'
+                    });
+                }
+            }
+        } catch (e) {
+            // ディレクトリが存在しない等のエラーは無視して空配列を返す
+        }
+    }
+    
+    await scanDir(artifactsDir);
+    return { resources };
+});
+
+// リソースの読み込みハンドラ
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const uri = request.params.uri;
+    if (uri.startsWith('file:///')) {
+        let filePath = uri.replace('file:///', '');
+        // Windows環境でのドライブレター開始パスへの配慮
+        if (process.platform === 'win32' && filePath.startsWith('/')) {
+            filePath = filePath.slice(1);
+        }
+        
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            return {
+                contents: [
+                    {
+                        uri,
+                        mimeType: filePath.endsWith('.csv') ? 'text/csv' : 'text/markdown',
+                        text: content
+                    }
+                ]
+            };
+        } catch (e) {
+            throw new Error(`Failed to read resource: ${uri}`);
+        }
+    }
+    throw new Error(`Unknown resource URI: ${uri}`);
+});
 
 // ツール一覧の提供
 server.setRequestHandler(ListToolsRequestSchema, async () => {

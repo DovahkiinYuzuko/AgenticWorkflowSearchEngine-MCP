@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const config = require('../config');
 const { broadcast } = require('../utils/streaming-server');
 
@@ -89,6 +90,8 @@ async function markdownToJson(mdContent, mdPath, url, title, jsonPath, intent) {
     const sections = [];
     let currentHeading = 'Introduction';
     let currentContent = [];
+    let currentStartLine = 1;
+    let lineIndex = 1;
     
     for (const line of lines) {
         const trimmed = line.trim();
@@ -96,21 +99,64 @@ async function markdownToJson(mdContent, mdPath, url, title, jsonPath, intent) {
             if (currentContent.length > 0 || currentHeading !== 'Introduction') {
                 sections.push({
                     heading: currentHeading,
-                    content: currentContent.join('\n').trim()
+                    content: currentContent.join('\n').trim(),
+                    startLine: currentStartLine,
+                    endLine: lineIndex - 1
                 });
             }
             currentHeading = trimmed.replace(/^#+\s*/, '');
             currentContent = [];
+            currentStartLine = lineIndex;
         } else {
             currentContent.push(line);
         }
+        lineIndex++;
     }
     
     if (currentContent.length > 0 || currentHeading !== 'Introduction') {
         sections.push({
             heading: currentHeading,
-            content: currentContent.join('\n').trim()
+            content: currentContent.join('\n').trim(),
+            startLine: currentStartLine,
+            endLine: lineIndex - 1
         });
+    }
+
+    // CSV索引 (index.csv) へのピン打ち記録
+    const artifactsDir = path.dirname(jsonPath);
+    const csvPath = path.join(artifactsDir, 'index.csv');
+    const mdFileName = path.basename(mdPath);
+
+    if (!fs.existsSync(csvPath)) {
+        fs.writeFileSync(csvPath, 'File,Heading,LineRange,Topics,Url\n', 'utf-8');
+    }
+
+    broadcast({ type: 'info', value: `\n\n--- Generating CSV Index for ${mdFileName} / CSV索引を生成中 ---\n\n` });
+    
+    for (const section of sections) {
+        let topics = section.heading;
+        // 内容が極端に短い場合は見出しそのものをトピックとする
+        if (config.ollama && config.ollama.enabled && section.content.trim().length > 50) {
+            try {
+                const topicPrompt = `Extract 3 to 5 keywords or short topic tags from the following text. 
+You MUST output ONLY comma-separated tags. Do not generate any extra remarks, no intro, no outro.
+Text: ${section.content.substring(0, 1000)}`;
+                
+                const tags = await callOllamaStreaming(topicPrompt, url, intent, null);
+                if (tags && tags.trim()) {
+                    topics = tags.trim();
+                }
+            } catch (e) {
+                // ignore and fallback to heading
+            }
+        }
+        
+        const safeHeading = section.heading.replace(/"/g, '""');
+        const safeTopics = topics.replace(/"/g, '""');
+        const lineRange = `L${section.startLine}-L${section.endLine}`;
+        const csvLine = `"${mdFileName}","${safeHeading}","${lineRange}","${safeTopics}","${url}#${encodeURIComponent(section.heading)}"\n`;
+        
+        fs.appendFileSync(csvPath, csvLine, 'utf-8');
     }
     
     let aiSummary = null;

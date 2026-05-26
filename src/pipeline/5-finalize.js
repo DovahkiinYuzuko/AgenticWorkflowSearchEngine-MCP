@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
 const { broadcast } = require('../utils/streaming-server');
 
@@ -104,8 +106,8 @@ ${validSummaries}`;
 /**
  * セッション2: 検索意図に対する包括的な総合要約を生成する
  */
-async function generateComprehensiveSummary(validSummaries, intent, locale) {
-    const prompt = `You are a professional research compiler. Based on the following "Search Intent" and the "Summaries" extracted from multiple sources, please synthesize a comprehensive, cohesive, and deeply structured objective answer.
+async function generateComprehensiveSummary(validSummaries, intent, locale, csvIndexContent) {
+    const prompt = `You are a professional research compiler. Based on the following "Search Intent", the "Summaries" extracted from multiple sources, and the provided "CSV Index", please synthesize a comprehensive, cohesive, and deeply structured objective answer.
 Focus ONLY on answering the Search Intent in a highly logical and clear structure. Remove redundant details.
 
 You MUST output the result ONLY in the language corresponding to the system locale "${locale}".
@@ -115,11 +117,22 @@ Use the following exact Markdown structure:
 ## Comprehensive Synthesis (総合的な検索意図への回答)
 (Provide a clear, structured, and deep summary that directly addresses the overall Search Intent, integrating facts from the sources with clickable citations)
 
+## Physical Reference Table (物理ピン打ち逆引き参照テーブル)
+(At the end of your response, strictly based on the provided CSV Index, generate a markdown table mapping the key facts used in your answer to their exact File, Heading, and Line Range. This acts as a highly reliable Fact-Checking index.
+Format example: 
+| Fact / Topic | File | Heading | Line Range | Source URL |
+|---|---|---|---|---|
+| (Fact description) | pageX_extracted.md | ## (Heading) | (LineRange) | [(URL)] |
+)
+
 【Search Intent】
 ${intent}
 
 【Summaries from Sources】
-${validSummaries}`;
+${validSummaries}
+
+【CSV Index of Source Files】
+${csvIndexContent || '(No CSV Index available)'}`;
 
     broadcast({ type: 'info', value: `\n\n--- Session 2: Generating Comprehensive Synthesis / 総合サマリーを生成中... ---\n\n` });
     return await callOllamaStreaming(prompt, (text) => broadcast({ type: 'token', value: text }));
@@ -145,9 +158,19 @@ async function generateFinalSummary(results, intent) {
     try {
         const locale = Intl.DateTimeFormat().resolvedOptions().locale;
 
+        // index.csv の読み込み
+        let csvIndexContent = '';
+        if (results.length > 0 && results[0].markdownPath) {
+            const artifactsDir = path.dirname(results[0].markdownPath);
+            const csvPath = path.join(artifactsDir, 'index.csv');
+            if (fs.existsSync(csvPath)) {
+                csvIndexContent = fs.readFileSync(csvPath, 'utf-8');
+            }
+        }
+
         // セッション1とセッション2を個別に実行し、シングルタスクで極限の思考精度を出す！
         const factCheckOutput = await generateFactCheck(validSummaries, intent, locale);
-        const synthesisOutput = await generateComprehensiveSummary(validSummaries, intent, locale);
+        const synthesisOutput = await generateComprehensiveSummary(validSummaries, intent, locale, csvIndexContent);
 
         // 最後に単純連結（Join）して1つの完璧なレポートに仕上げる
         const finalReport = `${factCheckOutput}\n\n---\n\n${synthesisOutput}`;
