@@ -1,0 +1,39 @@
+# Agentic Workflow Search Engine MCP
+
+> Universal Model Context Protocol (MCP) server for highly autonomous, multi-phase web and academic research with automated CAPTCHA fallback, local Ollama-driven content refinement, and custom resource indexing.
+
+## Core Capabilities
+
+This MCP server provides a highly specialized research pipeline designed to be executed autonomously by LLM agents. Instead of simply performing keyword queries, it crawls web pages, extracts main facts, converts them to clean markdown, structure data into JSON, and optionally performs secondary autonomous deep-dives based on findings.
+
+### Tools
+
+- `search_and_extract`: The primary research tool.
+  - **Arguments**:
+    - `keywords` (string, required): Search query.
+    - `intent` (string, required): Specific extraction criteria (e.g., "Extract tour dates and ticket prices").
+    - `limit` (number, optional, default: 5): Maximum number of search results to crawl.
+    - `final_summary` (boolean, optional, default: false): Perform global synthesis across all pages.
+    - `mode` (string, optional, default: "web"): `"web"` (dynamic crawl using Playwright) or `"academic"` (scrape-free search via arXiv/PubMed APIs).
+    - `deep_dive` (string, optional, default: "auto"): `"auto"` (autonomous secondary deep-dive search based on preliminary findings) or `"none"` (recommends follow-up terms instead of executing).
+
+### Resources
+
+The server exposes dynamically generated research data under the following custom URI scheme:
+- `mcp://artifacts/{keyword}/index.csv`: Fetches the mapping table of crawled pages, including titles, filenames, and local paths.
+- Read access is restricted to `.md` and `.csv` files stored under the `artifacts/` directory for security.
+
+## Directory Structure
+
+- `/src/`: Core server logic.
+  - `index.js`: MCP server entrypoint and protocol schema registry.
+  - `cli.js`: Standalone command-line interface.
+  - `pipeline/`: Phase-based crawl/extraction logic.
+    - `1-search.js`: Playwright web search.
+    - `2-capture.js`: Capture and PDF rendering of target pages.
+    - `3-extract.js`: PDF-to-Markdown conversion.
+    - `4-structure.js`: Markdown-to-JSON structuring (Ollama integration).
+    - `5-finalize.js`: Cross-page global synthesis.
+    - `academic-search.js`: Scraping-free API search fallback (PubMed & arXiv).
+- `/artifacts/`: Stores generated markdown articles, JSON raw extractions, and `index.csv` for each search query.
+- `/config.json`: Local server configurations (Ollama host, Playwright delays, search engine customization).

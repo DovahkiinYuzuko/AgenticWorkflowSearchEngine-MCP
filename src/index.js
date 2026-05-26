@@ -104,37 +104,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         tools: [
             {
                 name: "search_and_extract",
-                description: "[ENG] Web search by keywords, capture PDFs, convert to Markdown, and dynamically refine information based on search intent via local Ollama. / [JPN] キーワードでWeb検索し、PDF保存、Markdown変換したのち、ローカルOllamaを用いて検索意図（intent）に沿って情報を動的に取捨選択・要約します。",
+                description: "[ENG] Highly autonomous research pipeline. Crawls web pages using Playwright, renders them to PDFs, extracts clean markdown, and uses a local Ollama model to dynamically refine, filter, and structure information based on your search intent. If blocked by CAPTCHAs, it automatically falls back to clean, scrape-free arXiv and PubMed APIs. After completion, a dynamic index mapping table is created under the custom resource URI `mcp://artifacts/{keyword}/index.csv` for physical pin-point raw text tracking. / [JPN] 高度に自律的な多段階検索・抽出パイプライン。PlaywrightでWebページを巡回しPDFレンダリングのうえノイズを除去した綺麗なMarkdownを生成し、ローカルOllamaを用いて『検索意図 (intent)』に合致する客観的事実のみを構造化・要約します。CAPTCHA（ロボット検証）等でクロールがブロックされた場合は、自動的にAPI経由の論文検索（arXiv / PubMed）へフォールバックします。完了後は、カスタムリソースURI `mcp://artifacts/{キーワード}/index.csv` 経由で、生成された各ページの生テキストファイルへの逆引き物理ピン留めアクセスが可能です。",
                 inputSchema: {
                     type: "object",
                     properties: {
                         keywords: {
                             type: "string",
-                            description: "[ENG] Search query keywords. / [JPN] 検索キーワードを入力します。"    
+                            description: "[ENG] Target query keywords. Multiple terms should be space-separated. (e.g. 'quantum computing practical use 2026') / [JPN] 検索キーワードを入力します。複数ワードは半角スペースで区切ります（例：『量子コンピューター 実用化 2026』）。"    
                         },
                         intent: {
                             type: "string",
-                            description: "[ENG] Dynamic search intent or criteria to extract information. (e.g. 'extract ticket price and dates') / [JPN] この検索で『どういう情報を取捨選択して整理してほしいか』という具体的な意図や目的を入力します（例：『ツアー日程とチケット価格の抽出』）。"
+                            description: "[ENG] Specific extraction intent. Instruct precisely what details to extract, filter, and structure, and what to ignore. (e.g. 'Extract company roadmap milestones, expected release years, and discard any advertisements or promotions') / [JPN] 具体的な情報抽出の意図・目的を入力します。何に注目して情報を抽出し、何を無視すべきかをAIエージェントに向けて明確に指示してください（例：『企業別のロードマップのマイルストーンと実用化予定時期のみを抽出し、無関係な広告やプロモーションは徹底的に除外する』）。"
                         },
                         limit: {
                             type: "number",
-                            description: "[ENG] Maximum number of pages to process. (default: 5) / [JPN] 処理する最大件数（デフォルト5件）",
+                            description: "[ENG] Maximum number of search results to visit and process. (default: 5) / [JPN] 検索結果から実際に巡回・クローリングする最大件数（デフォルト5件）。",
                             default: 5
                         },
                         final_summary: {
                             type: "boolean",
-                            description: "[ENG] Generate a final comprehensive summary after processing all pages. / [JPN] 全ページを処理した後に、最終的な総合要約を生成するかどうか。",
+                            description: "[ENG] Whether to generate a single comprehensive synthesized summary crossing all crawled pages. (default: false) / [JPN] 全ページの個別抽出が終わった後に、全体の情報を総合した最終回答まとめレポートを生成するかどうか（デフォルト: false）。",
                             default: false
                         },
                         mode: {
                             type: "string",
-                            description: "[ENG] Search mode. 'web' for general web crawling, 'academic' for scrape-free arXiv & PubMed API search. / [JPN] 検索モード。『web』は通常のWeb巡回、『academic』は公式APIを叩く論文検索。",
+                            description: "[ENG] The search engine mode. 'web' (crawls using dynamic browser) or 'academic' (uses PubMed & arXiv APIs, bypasses scraping). (default: 'web') / [JPN] 検索の実行モード。『web』はPlaywrightを用いた通常のWebクローリング、『academic』は公式APIを叩く論文検索（スクレイピングが発生しないため安全かつ高速です）。",
                             default: "web",
                             enum: ["web", "academic"]
                         },
                         deep_dive: {
                             type: "string",
-                            description: "[ENG] Recursive deep-dive search behavior. 'auto' (fully autonomous), 'none' (disabled, but recommends keywords). / [JPN] 二段階検索（深掘り）の挙動。『auto』（完全自律）、『none』（無効化。ただし推奨キーワードを表示）",
+                            description: "[ENG] Autonomous multi-phase research depth. 'auto' (AI autonomously evaluates primary findings and executes a secondary search if needed) or 'none' (disables auto-search but recommends follow-up terms). (default: 'auto') / [JPN] 二段階検索（深掘り）の挙動。『auto』（一次結果をAI自身が評価し、未解決項目について自動で二次検索を実行）、『none』（自律検索を無効化し、推奨検索ワードの提示に留める）。",
                             default: "auto",
                             enum: ["auto", "none"]
                         }
