@@ -89,11 +89,11 @@ try {
             savePath = homeConfigPath;
             fs.writeFileSync(savePath, JSON.stringify(configToSave, null, 4), 'utf-8');
         }
-        console.log(`[AW-SE-MCP] 設定ファイルが見つからなかったため、デフォルト設定を自動生成しました: ${savePath}`);
+        console.log(`[AW-SE-MCP] Config file not found. Automatically generated default configuration: ${savePath} / 設定ファイルが見つからなかったため、デフォルト設定を自動生成しました: ${savePath}`);
         config.loadedFrom = savePath;
     }
 } catch (error) {
-    console.error("設定ファイルの読み込みまたは作成中にエラーが発生しました。デフォルト設定を使用します。 / Failed to load or create config file. Using default settings:", error);
+    console.error("[AW-SE-MCP] Failed to load or create config file. Using default settings. / 設定ファイルの読み込みまたは作成中にエラーが発生しました。デフォルト設定を使用します。:", error);
 }
 
 module.exports = config;
