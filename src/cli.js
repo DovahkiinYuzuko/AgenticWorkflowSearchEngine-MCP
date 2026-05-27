@@ -23,13 +23,13 @@ async function main() {
   node src/cli.js <keywords> [intent] [limit] [final_summary]
 
 [ENG] Usage (Flags - Recommended):
-  node src/cli.js --keywords "query" --intent "intent" --limit 5 --final-summary --mode academic --deep-dive auto
+  node src/cli.js --keywords "query" --intent "intent" --limit 5 --final-summary --mode academic --deep-dive auto --no-ollama
 
 [JPN] 使い方（位置引数）:
   node src/cli.js <検索キーワード> [検索意図] [件数制限] [最終要約フラグ: true/false]
 
 [JPN] 使い方（フラグ指定 - 推奨）:
-  node src/cli.js --keywords "キーワード" --intent "意図" --limit 5 --final-summary --mode academic --deep-dive interactive
+  node src/cli.js --keywords "キーワード" --intent "意図" --limit 5 --final-summary --mode academic --deep-dive interactive --no-ollama
         `);
         process.exit(0);
     }
@@ -40,6 +40,8 @@ async function main() {
     let finalSummary = args[3] === 'true';
     let mode = 'web';
     let deepDive = 'interactive';
+
+    let useOllama = undefined; // デフォルトはconfig.jsonに従う
 
     // フラグ引数のパースを追加
     for (let i = 0; i < args.length; i++) {
@@ -55,6 +57,10 @@ async function main() {
             mode = args[i+1].toLowerCase();
         } else if (args[i] === '--deep-dive' && args[i+1]) {
             deepDive = args[i+1].toLowerCase();
+        } else if (args[i] === '--no-ollama') {
+            useOllama = false;
+        } else if (args[i] === '--use-ollama') {
+            useOllama = true;
         }
     }
 
@@ -70,7 +76,7 @@ async function main() {
     cliLogger.info(`Final Summary / 最終要約: ${finalSummary}`);
 
     try {
-        const resultMarkdown = await runPipeline(keywords, intent, limit, finalSummary, mode, deepDive);
+        const resultMarkdown = await runPipeline(keywords, intent, limit, finalSummary, mode, deepDive, useOllama);
 
         console.log("\n");
         console.log("================================================================================");        

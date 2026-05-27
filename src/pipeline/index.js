@@ -168,7 +168,7 @@ ${finalSummary}
     }
 }
 
-async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mode = 'web', deepDive = 'interactive') {
+async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mode = 'web', deepDive = 'interactive', useOllamaInput = undefined) {
     const limit = limitInput || config.search.defaultLimit;
 
     let resolvedDeepDive = deepDive;
@@ -189,7 +189,11 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
         cliLogger.stopSpinner(true, `No cache found, running fresh search. / キャッシュなし。新規検索します。`);
     }
 
-    let ollamaActive = config.ollama && config.ollama.enabled;
+    let ollamaActive = config.ollama && (useOllamaInput !== undefined ? useOllamaInput : config.ollama.enabled);
+    const originalOllamaEnabled = config.ollama ? config.ollama.enabled : false;
+    if (config.ollama) {
+        config.ollama.enabled = ollamaActive;
+    }
 
     if (ollamaActive) {
         cliLogger.startSpinner(`Checking local model status...`);
@@ -296,9 +300,6 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
 
                 cliLogger.progressBar(i, phase1Results.length, `Refining: ${extractResult.mdFilename}`);
 
-                const originalOllamaEnabled = config.ollama.enabled;
-                config.ollama.enabled = ollamaActive;
-
                 const jsonData = await markdownToJson(
                     extractResult.markdownContent,
                     extractResult.mdPath,
@@ -307,8 +308,6 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
                     jsonPath,
                     intent
                 );
-
-                config.ollama.enabled = originalOllamaEnabled;
 
                 if (!jsonData.aiSummary && originalOllamaEnabled) {
                     hasRefinementError = true;
@@ -345,6 +344,9 @@ async function runPipeline(keywords, intent, limitInput, enableFinalSummary, mod
         stopRelayServer();
         if (ollamaActive) {
             await unloadOllamaModel(config.ollama.host, config.ollama.model);
+        }
+        if (config.ollama) {
+            config.ollama.enabled = originalOllamaEnabled;
         }
     }
 

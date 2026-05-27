@@ -9,7 +9,7 @@
     "maxPaginationDepth": 5
   },
   "ollama": {
-    "enabled": true,
+    "enabled": false,
     "model": "gemma4:e4b-it-q4_K_M",
     "host": "http://127.0.0.1:11434",
     "timeout": 600,

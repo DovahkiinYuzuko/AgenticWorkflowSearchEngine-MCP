@@ -119,6 +119,7 @@ MCPサーバーを登録すると、AIは以下の `search_and_extract` ツー�
 | `final_summary` | `boolean` |   No    |   `false`    | 全ページを巡回し個別の抽出が終わった後に、全体の情報を総合した最終まとめレポートを生成するかどうか。                                                  |
 | `mode`          | `string`  |   No    |   `"web"`    | 検索のモード。`"web"` (通常のWebクローリング) または `"academic"` (arXiv & PubMedの公式API経由の論文検索)。                                           |
 | `deep_dive`     | `string`  |   No    |   `"auto"`   | 自律的な二段階検索の挙動。`"auto"` (一次結果をAIが評価し自動で深掘り検索を実行)、または `"none"` (深掘りを行わず、推奨検索キーワードの提示に留める)。 |
+| `use_ollama`    | `boolean` |   No    |    `true`    | ローカルOllamaを使用した要約・構造化（AI処理）を実行するかどうか。`false` にするとOllamaを呼び出さず、クローリングと生Markdown抽出のみ行います。     |
 
 ---
 
@@ -148,6 +149,9 @@ MCPサーバーとしてではなく、単体のコマンドラインツール�
 ```bash
 # npx経由で実行（推奨・多機能）
 npx aw-se --keywords "AIスマートグラス 最新動向" --intent "各メーカーのスペックと価格情報の抽出" --limit 3 --mode web --deep-dive auto --final-summary
+
+# OllamaによるAI要約処理をスキップする場合（生データのみ高速収集）
+npx aw-se --keywords "2026年世界情勢" --intent "重要トピック抽出" --limit 5 --no-ollama
 
 # 位置引数による指定（簡易的）
 # npx aw-se <キーワード> <検索意図> <件数> <最終要約フラグ: true/false>
@@ -283,6 +287,7 @@ Performs keyword searches, crawls each page using Playwright, sanitizes content 
 | `final_summary` | `boolean` |    No    | `false`  | Whether to generate a single synthesized final answer crossing all pages.                                                                |
 | `mode`          | `string`  |    No    | `"web"`  | Search mode: `"web"` (dynamic crawl) or `"academic"` (scrape-free API search via arXiv & PubMed).                                        |
 | `deep_dive`     | `string`  |    No    | `"auto"` | Multi-phase deep-dive behavior: `"auto"` (AI autonomously plans and executes a secondary search) or `"none"` (AI only recommends terms). |
+| `use_ollama`    | `boolean` |    No    |  `true`  | Whether to use the local Ollama model for AI structured summarization. Set to `false` to completely bypass Ollama.                      |
 
 ---
 
@@ -312,6 +317,9 @@ You can also run this program as a standalone command-line interface directly in
 ```bash
 # Executing via npx with flags (Recommended)
 npx aw-se --keywords "quantum computing roadmap" --intent "Extract timeline and major players" --limit 3 --mode web --deep-dive auto --final-summary
+
+# Bypassing Ollama integration (Quick crawling only)
+npx aw-se --keywords "2026 global affairs" --intent "Extract major events" --limit 5 --no-ollama
 
 # Executing via npx with positional arguments (Simplified)
 # npx aw-se <keywords> [intent] [limit] [final_summary]

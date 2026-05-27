@@ -138,6 +138,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                             description: "[ENG] Autonomous multi-phase research depth. 'auto' (AI autonomously evaluates primary findings and executes a secondary search if needed) or 'none' (disables auto-search but recommends follow-up terms). (default: 'auto') / [JPN] 二段階検索（深掘り）の挙動。『auto』（一次結果をAI自身が評価し、未解決項目について自動で二次検索を実行）、『none』（自律検索を無効化し、推奨検索ワードの提示に留める）。",
                             default: "auto",
                             enum: ["auto", "none"]
+                        },
+                        use_ollama: {
+                            type: "boolean",
+                            description: "[ENG] Whether to use local Ollama model for dynamic refinement, summary and fact-checking. If set to false, it bypasses Ollama call completely, saving resources and allowing raw markdown data tracking on non-Ollama environments. (default: true) / [JPN] ローカルOllamaを使用したコンテンツ要約・構造化（AI処理）を実行するかどうか。falseに指定すると、Ollamaを呼び出さずにWeb巡回と生のMarkdown抽出を行います（デフォルト: true）。",
+                            default: true
                         }
                     },
                     required: ["keywords", "intent"]
@@ -170,10 +175,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const final_summary = args.final_summary || false;
         const mode = args.mode || "web";
         const deep_dive = args.deep_dive || "auto";
+        const use_ollama = args.use_ollama !== undefined ? args.use_ollama : true;
 
         try {
             // パイプラインを実行し、返ってきた統合Markdownテキストをそのまま親AIに返します
-            const resultMarkdown = await runPipeline(keywords, intent, limit, final_summary, mode, deep_dive);
+            const resultMarkdown = await runPipeline(keywords, intent, limit, final_summary, mode, deep_dive, use_ollama);
             return {
                 content: [
                     {
