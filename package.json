@@ -1,6 +1,6 @@
 {
   "name": "agentic-workflow-search-engine-mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Agentic Workflow Search Engine MCP & CLI",
   "main": "src/index.js",
   "bin": {
@@ -13,7 +13,8 @@
     "README.md",
     "LICENSE",
     "NOTICE.md",
-    "llms.txt"
+    "llms.txt",
+    "mcp_config_sample.json"
   ],
   "author": "YuzukoUnderson",
   "license": "MIT",
