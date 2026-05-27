@@ -1,6 +1,6 @@
 {
   "name": "agentic-workflow-search-engine",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Agentic Workflow Search Engine MCP & CLI",
   "main": "src/index.js",
   "bin": {
