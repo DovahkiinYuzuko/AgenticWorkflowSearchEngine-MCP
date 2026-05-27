@@ -12,12 +12,13 @@ cliLogger.init(true);
 
 const server = new Server(
     {
-        name: "agentic-workflow-search-engine-mcp",
-        version: "1.3.0",
+        name: "agentic-workflow-search-engine",
+        version: "1.3.1",
     },
     {
         capabilities: {
             tools: {},
+            resources: {},
         },
     }
 );
