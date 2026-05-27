@@ -53,9 +53,16 @@
 
 本ツールはnpmパッケージとして公開されているため、事前のインストールやGitクローンは不要です。`npx` コマンドで直接実行できます。
 
+#### 1. CLIモードでの使用 (ターミナルから直接調査・レポート出力)
 ```powershell
 # 初回実行時にパッケージとPlaywrightブラウザが自動セットアップされます
 npx aw-se --help
+```
+
+#### 2. MCPサーバーとしての起動
+```powershell
+# MCPクライアント（IDEやDesktopアプリ）から自動起動する場合
+npx -y agentic-workflow-search-engine-mcp
 ```
 *(※ソースコードを直接編集したい開発者の場合は、従来通り `git clone` してご利用ください)*
 
@@ -82,14 +89,14 @@ Universal MCP Installerを使用すると自動で設定ファイルに書き込
 npx universal-mcp-installer install agentic-workflow-search-engine-mcp
 ```
 
-#### 2. 手動で設定ファイルに追記する場合 (GUIアプリや一部のCLI等)
+#### 2. 手動で設定ファイルに追記する場合 (GUIアプリ等)
 
-**Claude Desktop / Antigravity 2.0 (agy CLI) など**は、手動で設定ファイルに追記する必要があります。
+**Claude Desktop / Antigravity 2.0 など**は、手動で設定ファイルに追記する必要があります。
 本リポジトリに同梱されている `mcp_config_sample.json` の内容をコピーし、各ツールの設定ファイルにある `mcpServers` 内に貼り付けてください。
 
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Desktop (Mac/Linux)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Antigravity 2.0 (agy CLI)**: `~/.gemini/config/mcp_config.json`
+- **Antigravity 2.0**: `~/.gemini/config/mcp_config.json`
 
 これだけで、次回起動時に自動で最新版がダウンロードされ、MCPサーバーとして認識されます。
 
@@ -210,9 +217,16 @@ This tool is designed with a strong emphasis on "Safety" and "Transparency," bey
 
 Because this tool is published as an npm package, you do not need to clone the repository. You can run it instantly using `npx`.
 
+#### 1. CLI Mode (Run direct research and output reports from terminal)
 ```bash
 # Run directly (Playwright browser will be setup automatically on first run)
 npx aw-se --help
+```
+
+#### 2. MCP Server Mode
+```bash
+# Run automatically by MCP clients (IDE or Desktop apps)
+npx -y agentic-workflow-search-engine-mcp
 ```
 *(If you wish to modify the source code, you can still `git clone` the repository as usual.)*
 
@@ -239,14 +253,14 @@ Use the Universal MCP Installer to automatically configure your editor.
 npx universal-mcp-installer install agentic-workflow-search-engine-mcp
 ```
 
-#### 2. Manual Configuration (for GUI Apps & some CLIs)
+#### 2. Manual Configuration (for GUI Apps)
 
-For tools like **Claude Desktop** and **Antigravity 2.0 (agy CLI)**, you need to manually add the server to their configuration files.
+For apps like **Claude Desktop** and **Antigravity 2.0**, you need to manually add the server to their configuration files.
 Copy the contents of the included `mcp_config_sample.json` file and paste it into the `mcpServers` object in your tool's config file.
 
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Desktop (Mac/Linux)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Antigravity 2.0 (agy CLI)**: `~/.gemini/config/mcp_config.json`
+- **Antigravity 2.0**: `~/.gemini/config/mcp_config.json`
 
 That's it! The client will automatically download and run the latest version on startup.
 
