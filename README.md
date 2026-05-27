@@ -82,14 +82,14 @@ Universal MCP Installerを使用すると自動で設定ファイルに書き込
 npx universal-mcp-installer install agentic-workflow-search-engine-mcp
 ```
 
-#### 2. 手動で設定ファイルに追記する場合 (GUIアプリ等)
+#### 2. 手動で設定ファイルに追記する場合 (GUIアプリや一部のCLI等)
 
-**Claude Desktop / Antigravity 2.0 など**は、手動で設定ファイルに追記する必要があります。
+**Claude Desktop / Antigravity 2.0 (agy CLI) など**は、手動で設定ファイルに追記する必要があります。
 本リポジトリに同梱されている `mcp_config_sample.json` の内容をコピーし、各ツールの設定ファイルにある `mcpServers` 内に貼り付けてください。
 
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Desktop (Mac/Linux)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Antigravity 2.0**: `~/.gemini/config/mcp_config.json`
+- **Antigravity 2.0 (agy CLI)**: `~/.gemini/config/mcp_config.json`
 
 これだけで、次回起動時に自動で最新版がダウンロードされ、MCPサーバーとして認識されます。
 
@@ -239,14 +239,14 @@ Use the Universal MCP Installer to automatically configure your editor.
 npx universal-mcp-installer install agentic-workflow-search-engine-mcp
 ```
 
-#### 2. Manual Configuration (for GUI Apps)
+#### 2. Manual Configuration (for GUI Apps & some CLIs)
 
-For apps like **Claude Desktop** and **Antigravity 2.0**, you need to manually add the server to their configuration files.
+For tools like **Claude Desktop** and **Antigravity 2.0 (agy CLI)**, you need to manually add the server to their configuration files.
 Copy the contents of the included `mcp_config_sample.json` file and paste it into the `mcpServers` object in your tool's config file.
 
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Claude Desktop (Mac/Linux)**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Antigravity 2.0**: `~/.gemini/config/mcp_config.json`
+- **Antigravity 2.0 (agy CLI)**: `~/.gemini/config/mcp_config.json`
 
 That's it! The client will automatically download and run the latest version on startup.
 
