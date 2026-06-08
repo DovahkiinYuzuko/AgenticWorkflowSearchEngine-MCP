@@ -56,7 +56,7 @@
 #### 1. CLIモードでの使用 (ターミナルから直接調査・レポート出力)
 ```powershell
 # 初回実行時にパッケージとPlaywrightブラウザが自動セットアップされます
-npx aw-se --help
+npx -y -p agentic-workflow-search-engine aw-se --keywords "AI検索 MCP" --limit 1 --no-ollama
 ```
 
 #### 2. MCPサーバーとしての起動
@@ -148,14 +148,14 @@ MCPサーバーとしてではなく、単体のコマンドラインツール�
 
 ```bash
 # npx経由で実行（推奨・多機能）
-npx aw-se --keywords "AIスマートグラス 最新動向" --intent "各メーカーのスペックと価格情報の抽出" --limit 3 --mode web --deep-dive auto --final-summary
+npx -y -p agentic-workflow-search-engine aw-se --keywords "AIスマートグラス 最新動向" --intent "各メーカーのスペックと価格情報の抽出" --limit 3 --mode web --deep-dive auto --final-summary
 
 # OllamaによるAI要約処理をスキップする場合（生データのみ高速収集）
-npx aw-se --keywords "2026年世界情勢" --intent "重要トピック抽出" --limit 5 --no-ollama
+npx -y -p agentic-workflow-search-engine aw-se --keywords "2026年世界情勢" --intent "重要トピック抽出" --limit 5 --no-ollama
 
 # 位置引数による指定（簡易的）
-# npx aw-se <キーワード> <検索意図> <件数> <最終要約フラグ: true/false>
-npx aw-se "量子コンピューター 実用化 2026" "ロードマップの抽出" 3 true
+# npx -y -p agentic-workflow-search-engine aw-se <キーワード> <検索意図> <件数> <最終要約フラグ: true/false>
+npx -y -p agentic-workflow-search-engine aw-se "量子コンピューター 実用化 2026" "ロードマップの抽出" 3 true
 ```
 
 ---
@@ -223,8 +223,8 @@ Because this tool is published as an npm package, you do not need to clone the r
 
 #### 1. CLI Mode (Run direct research and output reports from terminal)
 ```bash
-# Run directly (Playwright browser will be setup automatically on first run)
-npx aw-se --help
+# Run directly (Playwright browser will be set up automatically on first run)
+npx -y -p agentic-workflow-search-engine aw-se --keywords "AI search MCP" --limit 1 --no-ollama
 ```
 
 #### 2. MCP Server Mode
@@ -316,14 +316,14 @@ You can also run this program as a standalone command-line interface directly in
 
 ```bash
 # Executing via npx with flags (Recommended)
-npx aw-se --keywords "quantum computing roadmap" --intent "Extract timeline and major players" --limit 3 --mode web --deep-dive auto --final-summary
+npx -y -p agentic-workflow-search-engine aw-se --keywords "quantum computing roadmap" --intent "Extract timeline and major players" --limit 3 --mode web --deep-dive auto --final-summary
 
 # Bypassing Ollama integration (Quick crawling only)
-npx aw-se --keywords "2026 global affairs" --intent "Extract major events" --limit 5 --no-ollama
+npx -y -p agentic-workflow-search-engine aw-se --keywords "2026 global affairs" --intent "Extract major events" --limit 5 --no-ollama
 
 # Executing via npx with positional arguments (Simplified)
-# npx aw-se <keywords> [intent] [limit] [final_summary]
-npx aw-se "quantum computing roadmap" "Extract timeline" 3 true
+# npx -y -p agentic-workflow-search-engine aw-se <keywords> [intent] [limit] [final_summary]
+npx -y -p agentic-workflow-search-engine aw-se "quantum computing roadmap" "Extract timeline" 3 true
 ```
 
 ---
